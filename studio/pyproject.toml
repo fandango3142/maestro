@@ -1,0 +1,10 @@
+[project]
+name = "studio"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "audio-separator[cpu]>=0.48.0",
+    "audioread>=3.1.0",
+    "librosa>=1.0.1",
+    "soundfile>=0.14.0",
+]

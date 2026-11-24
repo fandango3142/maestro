@@ -1,0 +1,6 @@
+# Audio and model weights never go in git (size + copyright)
+inbox/
+library/
+models/
+.venv/
+__pycache__/
