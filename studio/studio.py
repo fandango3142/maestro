@@ -6,6 +6,7 @@ import json
 import re
 import shutil
 import tempfile
+import time
 from pathlib import Path
 
 import librosa
@@ -57,7 +58,8 @@ def process(src: Path) -> None:
     if (dest / "song.json").exists():
         print(f"skip  {src.name} (already in library)")
         return
-    print(f"split {src.name} ...")
+    print(f"{time.strftime('%H:%M:%S')} split {src.name} ...")
+    started = time.monotonic()
     dest.mkdir(parents=True, exist_ok=True)
     separate(src, dest)
     key, bpm = detect_key_bpm(dest / "instrumental.flac")
@@ -72,7 +74,7 @@ def process(src: Path) -> None:
     }
     # Written last: its existence means the song is complete.
     (dest / "song.json").write_text(json.dumps(song, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"done  {dest.name}: key {key}, {bpm} bpm")
+    print(f"{time.strftime('%H:%M:%S')} done  {dest.name}: key {key}, {bpm} bpm, {time.monotonic() - started:.0f}s")
 
 
 if __name__ == "__main__":

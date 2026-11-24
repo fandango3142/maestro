@@ -4,3 +4,4 @@ library/
 models/
 .venv/
 __pycache__/
+studio.log
