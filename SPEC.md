@@ -18,6 +18,8 @@ Owner: Ryan (performer, the only user). Readers: Ryan, Claude, and any agent hel
 5. App: lyrics timing editor done. Agreed build order: (a) key/tempo in app (native Signalsmith + FLAC decode, render cache), (b) audio cuts editor, (c) lyrics text editing, then setlists.
 - App: mockups for 5 screens in `design/` (code.html + screen.png each); design tokens in `design/stage_ready_karaoke_manager/DESIGN.md`. Flutter app (`app/`) package 1 done: Library + one-screen Stage mode, reading `Documents/Karaoke/library`. Next: setlists, song editor + tap-to-sync, two-screen stage.
 
+**Guiding principle (Ryan, 2026-11-25): start with the wheel, then improve it.** Use the fastest existing tool or service to get a working, stable system; then learn from it and replace parts with our own once we have data to compare against. Guard rails: every external result is saved locally in our formats with its source recorded (e.g. `"lyrics_source": "lrclib"`), and every service sits behind a swappable adapter, so losing a service never breaks the library. Services' outputs double as benchmarks for our own versions; only lyrics checked by ear count as ground truth.
+
 **Decisions**
 | Decision | Why |
 |---|---|
@@ -27,6 +29,7 @@ Owner: Ryan (performer, the only user). Readers: Ryan, Claude, and any agent hel
 | Key/tempo pre-rendered per song (Signalsmith Stretch, MIT) | Nothing heavy runs on stage |
 | Plain files (song.json, LRC), no database | Enough for 500 songs; copies straight to the iPad |
 | Git remote = the GPU box directly; audio never in git | Size, copyright |
+| Bootstrap sources: LRCLIB first (open, full dump); Musixmatch (paid tier needed to store), AudioShake (paid, separation benchmark) and Shazam (unofficial, disposable) only behind adapters | Build the library fast, then mature away from them |
 | Auto lyric sync for English/Spanish/Hindi (local Whisper word timing, study nomadkaraoke/karaoke-gen first); Konkani = manual tap-sync | Whisper has no Konkani; Ryan is fine syncing those by hand. Keep building Maestro rather than adopting an existing repo (none does stage mode/setlists/offline iPad, several need paid or external APIs) |
 
 **Machines**
