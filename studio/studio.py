@@ -33,8 +33,12 @@ def separate(src: Path, dest: Path) -> None:
     from audio_separator.separator import Separator  # slow import; only when needed
 
     with tempfile.TemporaryDirectory() as tmp:
-        # ponytail: library defaults for chunk size; tune mdxc_params on the 4GB GPU box if it OOMs.
-        sep = Separator(output_dir=tmp, output_format="FLAC", model_file_dir=str(MODELS))
+        # overlap=2 + fp16 autocast: speed vs the model's default overlap of 4 (GTX 1650 box).
+        sep = Separator(
+            output_dir=tmp, output_format="FLAC", model_file_dir=str(MODELS), use_autocast=True,
+            mdxc_params={"segment_size": 256, "override_model_segment_size": False,
+                         "batch_size": 1, "overlap": 2, "pitch_shift": 0},
+        )
         sep.load_model(SEPARATION_MODEL)
         for out in sep.separate(str(src)):
             stem = "vocals" if "(vocals)" in out.lower() else "instrumental"
