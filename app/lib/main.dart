@@ -20,7 +20,7 @@ Future<void> main() async {
   final root = Directory('${docs.path}${Platform.pathSeparator}Karaoke');
   await Directory('${root.path}/library').create(recursive: true);
   runApp(MaterialApp(
-    title: 'Karaoke Manager',
+    title: 'Maestro',
     debugShowCheckedModeBanner: false,
     theme: K.theme(),
     home: LibraryScreen(root: root),
@@ -139,7 +139,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         color: K.surface1,
         padding: const EdgeInsets.all(20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Karaoke Manager',
+          const Text('Maestro',
               style: TextStyle(color: K.accent, fontSize: 20, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           Text('Offline  •  ${widget.root.path}',

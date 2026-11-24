@@ -1,4 +1,4 @@
-# Karaoke: Living Spec
+# Maestro (personal stage karaoke): Living Spec
 
 The single source of truth for this project. Update it whenever a decision changes; don't create other spec files.
 Owner: Ryan (performer, the only user). Readers: Ryan, Claude, and any agent helping (e.g. UI).
