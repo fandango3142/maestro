@@ -7,7 +7,14 @@ Owner: Ryan (performer, the only user). Readers: Ryan, Claude, and any agent hel
 
 **Status (update as work lands)**
 - Studio: vocal separation + key/BPM detection working on the GPU box. Drop folder (`~/Desktop/Karaoke Inbox` on the box) auto-processes songs.
-- Studio next: backing-vocal split (Ryan picking between becruily mel-band and frazer-becruily BS models), verify key detection against known keys, lyrics (local LRCLIB copy, auto-sync, tap-to-sync), key/tempo render.
+- Studio next: verify key detection against known keys (Queen "Crazy Little Thing" = D major), lyrics (local LRCLIB copy, auto-sync, tap-to-sync), key/tempo render.
+
+**Pick up next session**
+1. GPU box: power it on and check it's back on Wi-Fi (`192.168.29.71`). Last night it went unreachable after the lid closed: the fan was running but there was no network, and it was hard powered off. Read `journalctl -b -1` for the cause, and disable Wi-Fi power saving.
+2. Process the 3 remaining songs in `inbox-backing/` (Los-Lobos, Queen-Crazy, Shaggy-Angel). After a reboot the path unit only fires on *new* changes, so run `~/karaoke/studio/run.sh` once. Fix: also enable `karaoke-studio.service` at boot.
+3. Copy the finished songs to `Documents/Karaoke/library` on the dev laptop; check Queen's key against D major.
+4. The box desktop is XFCE: power settings live in `xfconf` (xfce4-power-manager), not gsettings.
+5. App: Ryan's sound + pedal field test, then setlists and the song editor with tap-to-sync.
 - App: mockups for 5 screens in `design/` (code.html + screen.png each); design tokens in `design/stage_ready_karaoke_manager/DESIGN.md`. Flutter app (`app/`) package 1 done: Library + one-screen Stage mode, reading `Documents/Karaoke/library`. Next: setlists, song editor + tap-to-sync, two-screen stage.
 
 **Decisions**
