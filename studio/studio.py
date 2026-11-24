@@ -33,9 +33,9 @@ def separate(src: Path, dest: Path) -> None:
     from audio_separator.separator import Separator  # slow import; only when needed
 
     with tempfile.TemporaryDirectory() as tmp:
-        # overlap=2 + fp16 autocast: speed vs the model's default overlap of 4 (GTX 1650 box).
+        # overlap=2 instead of the model's 4: ~2x faster. fp16 autocast was SLOWER on the GTX 1650.
         sep = Separator(
-            output_dir=tmp, output_format="FLAC", model_file_dir=str(MODELS), use_autocast=True,
+            output_dir=tmp, output_format="FLAC", model_file_dir=str(MODELS),
             mdxc_params={"segment_size": 256, "override_model_segment_size": False,
                          "batch_size": 1, "overlap": 2, "pitch_shift": 0},
         )
