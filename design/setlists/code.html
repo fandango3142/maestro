@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"secondary-fixed":"#ffddb8","outline-variant":"#534434","on-background":"#e2e2e8","tertiary-fixed-dim":"#7fd0ff","inverse-on-surface":"#2f3035","surface-container-highest":"#333539","on-tertiary-fixed":"#001e2d","primary-container":"#f59e0b","on-primary-fixed-variant":"#653e00","on-secondary-fixed-variant":"#62400f","on-tertiary":"#00344a","surface-bright":"#37393e","outline":"#a08e7a","inverse-surface":"#e2e2e8","surface":"#111317","error":"#ffb4ab","surface-container-low":"#1a1c20","secondary-container":"#62400f","primary-fixed":"#ffddb8","inverse-primary":"#855300","on-primary":"#472a00","on-secondary-container":"#ddac72","surface-container-lowest":"#0c0e12","on-primary-fixed":"#2a1700","error-container":"#93000a","on-tertiary-container":"#004966","primary-fixed-dim":"#ffb95f","surface-tint":"#ffb95f","on-secondary-fixed":"#2a1700","secondary":"#f0bd82","tertiary-fixed":"#c5e7ff","on-error-container":"#ffdad6","on-secondary":"#472a00","on-error":"#690005","on-surface":"#e2e2e8","surface-container":"#1e2024","on-surface-variant":"#d8c3ad","on-tertiary-fixed-variant":"#004c6a","surface-dim":"#111317","on-primary-container":"#613b00","surface-container-high":"#282a2e","tertiary-container":"#1abdff","tertiary":"#8fd5ff","background":"#111317","primary":"#ffc174","surface-variant":"#333539","secondary-fixed-dim":"#f0bd82"},"borderRadius":{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},"spacing":{"space-sm":"0.5rem","space-lg":"1.5rem","gutter":"1rem","space-xl":"2rem","space-xs":"0.25rem","margin":"1.5rem","space-md":"1rem"},"fontFamily":{"body-md":["\"Noto Sans, Noto Sans Devanagari\""],"display-stage":["\"Noto Sans, Noto Sans Devanagari\""],"headline-md":["\"Noto Sans, Noto Sans Devanagari\""],"display-stage-mobile":["\"Noto Sans, Noto Sans Devanagari\""],"label-lg":["\"Noto Sans, Noto Sans Devanagari\""],"label-sm":["\"Noto Sans, Noto Sans Devanagari\""],"body-sm":["\"Noto Sans, Noto Sans Devanagari\""],"title-md":["\"Noto Sans, Noto Sans Devanagari\""],"headline-sm":["\"Noto Sans, Noto Sans Devanagari\""],"label-md":["\"Noto Sans, Noto Sans Devanagari\""],"headline-lg":["\"Noto Sans, Noto Sans Devanagari\""]},"fontSize":{"body-md":["14px",{"lineHeight":"20px","fontWeight":"400"}],"display-stage":["64px",{"lineHeight":"76px","letterSpacing":"-0.02em","fontWeight":"700"}],"headline-md":["24px",{"lineHeight":"32px","fontWeight":"600"}],"display-stage-mobile":["36px",{"lineHeight":"44px","letterSpacing":"-0.01em","fontWeight":"700"}],"label-lg":["14px",{"lineHeight":"20px","letterSpacing":"0.01em","fontWeight":"500"}],"label-sm":["11px",{"lineHeight":"14px","letterSpacing":"0.04em","fontWeight":"600"}],"body-sm":["13px",{"lineHeight":"18px","fontWeight":"400"}],"title-md":["16px",{"lineHeight":"24px","fontWeight":"600"}],"headline-sm":["20px",{"lineHeight":"28px","fontWeight":"600"}],"label-md":["12px",{"lineHeight":"16px","letterSpacing":"0.02em","fontWeight":"500"}],"headline-lg":["32px",{"lineHeight":"40px","fontWeight":"600"}]}}}};</script></head><body class="bg-surface font-body-md text-body-md text-on-surface"><aside class="fixed left-0 top-0 h-full w-[220px] bg-surface-container-low z-50 flex flex-col py-space-lg px-space-md"><div class="mb-space-lg px-space-xs"><div class="flex items-center justify-between mb-space-sm"><span class="font-title-md text-title-md text-primary tracking-tight">Karaoke Manager</span><button aria-label="Collapse sidebar" class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-[20px]">chevron_left</span></button></div><div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-label-sm"><span class="w-1.5 h-1.5 rounded-full bg-primary-container"></span><span class="truncate">Offline • Documents/Karaoke/</span></div></div><nav class="flex-1 flex flex-col gap-space-xs" data-active-classes="bg-primary-container text-on-primary-container"><a class="min-h-[44px] flex items-center gap-3 px-3 rounded-xl font-label-lg text-label-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="library" href="#"><span class="material-symbols-outlined text-[20px]">library_music</span><span>Library</span></a><a class="min-h-[44px] flex items-center gap-3 px-3 rounded-xl font-label-lg text-label-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="song-editor" href="#"><span class="material-symbols-outlined text-[20px]">edit_note</span><span>Song Editor</span></a><a aria-current="page" class="min-h-[44px] flex items-center gap-3 px-3 rounded-xl font-label-lg transition-colors bg-primary-container text-on-primary-container" data-path="setlists" href="#"><span class="material-symbols-outlined text-[20px]">queue_music</span><span>Setlists</span></a><a class="min-h-[44px] mt-space-sm flex items-center gap-3 px-3 rounded-xl font-label-lg text-label-lg bg-primary-container text-on-primary-container hover:bg-primary hover:text-on-primary transition-colors" data-path="stage-mode" href="#"><span class="material-symbols-outlined text-[20px]">mic_external_on</span><span>Stage Mode</span></a></nav><div class="pt-space-md"><nav class="flex flex-col gap-space-xs" data-active-classes="bg-primary-container text-on-primary-container"><a class="min-h-[44px] flex items-center gap-3 px-3 rounded-xl font-label-lg text-label-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="settings" href="#"><span class="material-symbols-outlined text-[20px]">settings</span><span>Settings</span></a></nav></div></aside><div class="pl-[220px]"><header class="fixed top-0 left-[220px] right-0 h-16 bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-end px-margin gap-space-md"><div class="flex items-center gap-space-sm"><span class="font-label-md text-label-md text-on-surface-variant">Ryan</span><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></header><main class="w-full pt-16 px-margin bg-surface min-h-screen"><div class="flex flex-col w-full">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg py-space-lg">
+<!-- Left Sidebar: Setlists Directory -->
+<section class="lg:col-span-4 xl:col-span-3 flex flex-col gap-space-md bg-surface-container-low rounded-xl p-space-md shadow-sm">
+<div class="flex items-center justify-between gap-space-sm">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">queue_music</span>
+<h2 class="font-title-md text-title-md text-on-surface">Setlists</h2>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant bg-surface-container-high px-2.5 py-1 rounded-full tabular-nums">3 Saved</span>
+</div>
+<button class="w-full min-h-[44px] flex items-center justify-center gap-2 rounded-xl bg-primary-container text-on-primary-container hover:bg-primary hover:text-on-primary font-label-lg text-label-lg transition-colors cursor-pointer" id="new-setlist-btn" type="button">
+<span class="material-symbols-outlined text-[20px]">add</span>
+<span>+ New Setlist</span>
+</button>
+<div class="flex flex-col gap-space-xs" id="setlist-sidebar-list">
+<button class="setlist-nav-item w-full min-h-[56px] flex flex-col justify-center gap-1 px-3.5 py-2.5 rounded-xl bg-surface-container-high text-left transition-colors cursor-pointer" data-setlist-id="friday" type="button">
+<div class="flex items-center justify-between gap-2 w-full">
+<span class="font-label-lg text-label-lg text-primary truncate">Friday Konkani &amp; Retro Night</span>
+<span class="w-2 h-2 rounded-full bg-primary shrink-0"></span>
+</div>
+<div class="flex items-center gap-2 font-body-sm text-body-sm text-on-surface-variant tabular-nums">
+<span>8 songs</span>
+<span>•</span>
+<span>42:15</span>
+</div>
+</button>
+<button class="setlist-nav-item w-full min-h-[56px] flex flex-col justify-center gap-1 px-3.5 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-left transition-colors cursor-pointer" data-setlist-id="acoustic" type="button">
+<div class="flex items-center justify-between gap-2 w-full">
+<span class="font-label-lg text-label-lg text-on-surface truncate">Acoustic Lounge</span>
+</div>
+<div class="flex items-center gap-2 font-body-sm text-body-sm text-on-surface-variant tabular-nums">
+<span>6 songs</span>
+<span>•</span>
+<span>28:40</span>
+</div>
+</button>
+<button class="setlist-nav-item w-full min-h-[56px] flex flex-col justify-center gap-1 px-3.5 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-left transition-colors cursor-pointer" data-setlist-id="wedding" type="button">
+<div class="flex items-center justify-between gap-2 w-full">
+<span class="font-label-lg text-label-lg text-on-surface truncate">Wedding Reception</span>
+</div>
+<div class="flex items-center gap-2 font-body-sm text-body-sm text-on-surface-variant tabular-nums">
+<span>12 songs</span>
+<span>•</span>
+<span>55:10</span>
+</div>
+</button>
+</div>
+<div class="mt-auto pt-space-md grid grid-cols-3 gap-space-xs">
+<button class="min-h-[44px] flex items-center justify-center gap-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors cursor-pointer" id="rename-setlist-btn" type="button">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+<span>Rename</span>
+</button>
+<button class="min-h-[44px] flex items-center justify-center gap-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors cursor-pointer" id="duplicate-setlist-btn" type="button">
+<span class="material-symbols-outlined text-[18px]">content_copy</span>
+<span>Duplicate</span>
+</button>
+<button class="min-h-[44px] flex items-center justify-center gap-1.5 rounded-xl bg-surface-container hover:bg-error-container text-on-surface-variant hover:text-on-error-container font-label-md text-label-md transition-colors cursor-pointer" id="delete-setlist-btn" type="button">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+<span>Delete</span>
+</button>
+</div>
+</section>
+<!-- Main Area: Active Setlist Workspace -->
+<section class="lg:col-span-8 xl:col-span-9 flex flex-col gap-space-md">
+<!-- Setlist Header Card -->
+<div class="bg-surface-container rounded-xl p-space-lg shadow-md flex flex-col xl:flex-row xl:items-center justify-between gap-space-lg">
+<div class="flex flex-col gap-space-sm min-w-0">
+<div class="flex items-center gap-2">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-primary bg-surface-container-high px-2.5 py-1 rounded-full">Active Setlist</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Offline Ready</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface truncate" id="active-setlist-title">Friday Konkani &amp; Retro Night</h1>
+<div class="flex flex-wrap items-center gap-space-md text-on-surface-variant font-body-md text-body-md">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[18px] text-primary">calendar_today</span>
+<span class="tabular-nums" id="active-setlist-date">2025-05-16</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[18px] text-primary">location_on</span>
+<span id="active-setlist-venue">Club Tivoli</span>
+</div>
+</div>
+</div>
+<div class="flex flex-wrap sm:flex-nowrap items-center gap-space-md shrink-0">
+<div class="bg-surface-container-lowest rounded-xl px-space-lg py-space-sm flex flex-col items-end justify-center min-w-[140px]">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Total Running Time</span>
+<span class="font-headline-lg text-headline-lg text-primary tabular-nums" id="active-setlist-duration">42:15</span>
+</div>
+<button class="min-h-[56px] px-space-lg rounded-xl bg-primary-container text-on-primary-container hover:bg-primary hover:text-on-primary font-title-md text-title-md flex items-center justify-center gap-2.5 shadow-md transition-colors cursor-pointer" id="launch-stage-btn" type="button">
+<span class="material-symbols-outlined text-[22px]" style="font-variation-settings: 'FILL' 1;">mic_external_on</span>
+<span>Launch Stage Mode</span>
+</button>
+</div>
+</div>
+<!-- Validation Warning Banner -->
+<div class="bg-secondary-container/40 rounded-xl px-space-md py-3 flex items-center justify-between gap-space-md" id="validation-banner">
+<div class="flex items-center gap-3 min-w-0">
+<span class="material-symbols-outlined text-primary text-[22px] shrink-0">warning</span>
+<p class="font-body-md text-body-md text-on-surface">
+            1 song in this setlist (<span class="font-label-lg text-label-lg text-primary">Bésame Mucho</span>) is not Ready — sync lyrics before stage mode.
+          </p>
+</div>
+<button class="min-h-[44px] px-3 rounded-xl bg-surface-container-high hover:bg-primary-container text-on-surface hover:text-on-primary-container font-label-md text-label-md shrink-0 transition-colors cursor-pointer" type="button">
+          Sync Now
+        </button>
+</div>
+<!-- Song List Header -->
+<div class="flex items-center justify-between px-space-sm">
+<div class="flex items-center gap-2">
+<h2 class="font-title-md text-title-md text-on-surface">Setlist Order</h2>
+<span class="font-label-sm text-label-sm text-on-surface-variant bg-surface-container-high px-2.5 py-0.5 rounded-full tabular-nums" id="song-count-badge">4 of 8 shown</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant hidden sm:inline">Drag handle to reorder • 44px+ touch targets</span>
+</div>
+<!-- Drag-to-Reorder Song List -->
+<div class="flex flex-col gap-space-sm" id="song-list-container">
+<!-- Row 1: godacho-panv -->
+<div class="song-row bg-surface-container hover:bg-surface-container-high rounded-xl p-space-sm sm:p-space-md flex flex-col lg:flex-row lg:items-center gap-space-sm transition-colors" data-song-id="godacho-panv" draggable="true">
+<div class="flex items-center gap-space-sm min-w-0 flex-1">
+<button aria-label="Drag to reorder" class="drag-handle min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-on-surface-variant hover:text-primary hover:bg-surface-container-lowest cursor-grab active:cursor-grabbing shrink-0" type="button">
+<span class="material-symbols-outlined text-[22px]">drag_indicator</span>
+</button>
+<span class="row-index font-label-md text-label-md text-on-surface-variant w-6 text-center tabular-nums shrink-0">1</span>
+<div class="flex flex-col min-w-0 flex-1">
+<div class="flex items-center gap-2 flex-wrap">
+<span class="font-title-md text-title-md text-on-surface truncate">godacho-panv</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant bg-surface-container-lowest px-2 py-0.5 rounded-full">Konkani</span>
+</div>
+<div class="flex items-center gap-2 mt-1">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-tertiary-container/15 text-tertiary font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                  Ready
+                </span>
+<span class="font-body-sm text-body-sm text-on-surface-variant tabular-nums">3:42</span>
+</div>
+</div>
+</div>
+<div class="flex flex-wrap sm:flex-nowrap items-center gap-space-sm pl-12 lg:pl-0">
+<div class="flex items-center gap-1.5 bg-surface-container-lowest rounded-xl px-2.5 min-h-[44px]">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Key:</span>
+<select aria-label="Key override for godacho-panv" class="bg-transparent text-primary font-label-md text-label-md focus:outline-none cursor-pointer min-h-[44px]">
+<option class="bg-surface-container text-on-surface" selected="" value="Gm-&gt;Am">Gm → Am</option>
+<option class="bg-surface-container text-on-surface" value="Gm">Gm (Original)</option>
+<option class="bg-surface-container text-on-surface" value="Gm-&gt;F#m">Gm → F#m</option>
+</select>
+</div>
+<input aria-label="Gig note for godacho-panv" class="min-h-[44px] w-full sm:w-52 bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant/60 font-body-sm text-body-sm rounded-xl px-3 focus:outline-none" placeholder="Add gig note..." type="text" value="Talk to crowd before intro"/>
+<button aria-label="Remove godacho-panv" class="remove-song-btn min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-surface-container-lowest text-on-surface-variant hover:bg-error-container hover:text-on-error-container transition-colors cursor-pointer shrink-0" type="button">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+</div>
+<!-- Row 2: Lag Ja Gale -->
+<div class="song-row bg-surface-container hover:bg-surface-container-high rounded-xl p-space-sm sm:p-space-md flex flex-col lg:flex-row lg:items-center gap-space-sm transition-colors" data-song-id="lag-ja-gale" draggable="true">
+<div class="flex items-center gap-space-sm min-w-0 flex-1">
+<button aria-label="Drag to reorder" class="drag-handle min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-on-surface-variant hover:text-primary hover:bg-surface-container-lowest cursor-grab active:cursor-grabbing shrink-0" type="button">
+<span class="material-symbols-outlined text-[22px]">drag_indicator</span>
+</button>
+<span class="row-index font-label-md text-label-md text-on-surface-variant w-6 text-center tabular-nums shrink-0">2</span>
+<div class="flex flex-col min-w-0 flex-1">
+<div class="flex items-center gap-2 flex-wrap">
+<span class="font-title-md text-title-md text-on-surface truncate">Lag Ja Gale</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant bg-surface-container-lowest px-2 py-0.5 rounded-full">Hindi</span>
+</div>
+<div class="flex items-center gap-2 mt-1">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-tertiary-container/15 text-tertiary font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                  Ready
+                </span>
+<span class="font-body-sm text-body-sm text-on-surface-variant tabular-nums">4:18</span>
+</div>
+</div>
+</div>
+<div class="flex flex-wrap sm:flex-nowrap items-center gap-space-sm pl-12 lg:pl-0">
+<div class="flex items-center gap-1.5 bg-surface-container-lowest rounded-xl px-2.5 min-h-[44px]">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Key:</span>
+<select aria-label="Key override for Lag Ja Gale" class="bg-transparent text-on-surface font-label-md text-label-md focus:outline-none cursor-pointer min-h-[44px]">
+<option class="bg-surface-container text-on-surface" selected="" value="C#m">C#m</option>
+<option class="bg-surface-container text-on-surface" value="C#m-&gt;Dm">C#m → Dm</option>
+<option class="bg-surface-container text-on-surface" value="C#m-&gt;Cm">C#m → Cm</option>
+</select>
+</div>
+<input aria-label="Gig note for Lag Ja Gale" class="min-h-[44px] w-full sm:w-52 bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant/60 font-body-sm text-body-sm rounded-xl px-3 focus:outline-none" placeholder="Add gig note..." type="text" value=""/>
+<button aria-label="Remove Lag Ja Gale" class="remove-song-btn min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-surface-container-lowest text-on-surface-variant hover:bg-error-container hover:text-on-error-container transition-colors cursor-pointer shrink-0" type="button">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+</div>
+<!-- Row 3: Bésame Mucho -->
+<div class="song-row bg-surface-container hover:bg-surface-container-high rounded-xl p-space-sm sm:p-space-md flex flex-col lg:flex-row lg:items-center gap-space-sm transition-colors" data-song-id="besame-mucho" draggable="true">
+<div class="flex items-center gap-space-sm min-w-0 flex-1">
+<button aria-label="Drag to reorder" class="drag-handle min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-on-surface-variant hover:text-primary hover:bg-surface-container-lowest cursor-grab active:cursor-grabbing shrink-0" type="button">
+<span class="material-symbols-outlined text-[22px]">drag_indicator</span>
+</button>
+<span class="row-index font-label-md text-label-md text-on-surface-variant w-6 text-center tabular-nums shrink-0">3</span>
+<div class="flex flex-col min-w-0 flex-1">
+<div class="flex items-center gap-2 flex-wrap">
+<span class="font-title-md text-title-md text-on-surface truncate">Bésame Mucho</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant bg-surface-container-lowest px-2 py-0.5 rounded-full">Spanish</span>
+</div>
+<div class="flex items-center gap-2 mt-1">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary-container/15 text-primary font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                  Needs Sync
+                </span>
+<span class="font-body-sm text-body-sm text-on-surface-variant tabular-nums">3:15</span>
+</div>
+</div>
+</div>
+<div class="flex flex-wrap sm:flex-nowrap items-center gap-space-sm pl-12 lg:pl-0">
+<div class="flex items-center gap-1.5 bg-surface-container-lowest rounded-xl px-2.5 min-h-[44px]">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Key:</span>
+<select aria-label="Key override for Bésame Mucho" class="bg-transparent text-primary font-label-md text-label-md focus:outline-none cursor-pointer min-h-[44px]">
+<option class="bg-surface-container text-on-surface" selected="" value="Dm-&gt;Em">Dm → Em</option>
+<option class="bg-surface-container text-on-surface" value="Dm">Dm (Original)</option>
+<option class="bg-surface-container text-on-surface" value="Dm-&gt;Cm">Dm → Cm</option>
+</select>
+</div>
+<input aria-label="Gig note for Bésame Mucho" class="min-h-[44px] w-full sm:w-52 bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant/60 font-body-sm text-body-sm rounded-xl px-3 focus:outline-none" placeholder="Add gig note..." type="text" value=""/>
+<button aria-label="Remove Bésame Mucho" class="remove-song-btn min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-surface-container-lowest text-on-surface-variant hover:bg-error-container hover:text-on-error-container transition-colors cursor-pointer shrink-0" type="button">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+</div>
+<!-- Row 4: Fly Me to the Moon -->
+<div class="song-row bg-surface-container hover:bg-surface-container-high rounded-xl p-space-sm sm:p-space-md flex flex-col lg:flex-row lg:items-center gap-space-sm transition-colors" data-song-id="fly-me-to-the-moon" draggable="true">
+<div class="flex items-center gap-space-sm min-w-0 flex-1">
+<button aria-label="Drag to reorder" class="drag-handle min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-on-surface-variant hover:text-primary hover:bg-surface-container-lowest cursor-grab active:cursor-grabbing shrink-0" type="button">
+<span class="material-symbols-outlined text-[22px]">drag_indicator</span>
+</button>
+<span class="row-index font-label-md text-label-md text-on-surface-variant w-6 text-center tabular-nums shrink-0">4</span>
+<div class="flex flex-col min-w-0 flex-1">
+<div class="flex items-center gap-2 flex-wrap">
+<span class="font-title-md text-title-md text-on-surface truncate">Fly Me to the Moon</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant bg-surface-container-lowest px-2 py-0.5 rounded-full">English</span>
+</div>
+<div class="flex items-center gap-2 mt-1">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-tertiary-container/15 text-tertiary font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                  Ready
+                </span>
+<span class="font-body-sm text-body-sm text-on-surface-variant tabular-nums">2:27</span>
+</div>
+</div>
+</div>
+<div class="flex flex-wrap sm:flex-nowrap items-center gap-space-sm pl-12 lg:pl-0">
+<div class="flex items-center gap-1.5 bg-surface-container-lowest rounded-xl px-2.5 min-h-[44px]">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Key:</span>
+<select aria-label="Key override for Fly Me to the Moon" class="bg-transparent text-on-surface font-label-md text-label-md focus:outline-none cursor-pointer min-h-[44px]">
+<option class="bg-surface-container text-on-surface" selected="" value="Am">Am</option>
+<option class="bg-surface-container text-on-surface" value="Am-&gt;Bm">Am → Bm</option>
+<option class="bg-surface-container text-on-surface" value="Am-&gt;Gm">Am → Gm</option>
+</select>
+</div>
+<input aria-label="Gig note for Fly Me to the Moon" class="min-h-[44px] w-full sm:w-52 bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant/60 font-body-sm text-body-sm rounded-xl px-3 focus:outline-none" placeholder="Add gig note..." type="text" value=""/>
+<button aria-label="Remove Fly Me to the Moon" class="remove-song-btn min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-surface-container-lowest text-on-surface-variant hover:bg-error-container hover:text-on-error-container transition-colors cursor-pointer shrink-0" type="button">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+</div>
+</div>
+<script>
+  (function () {
+    const setlistsData = {
+      friday: {
+        title: "Friday Konkani & Retro Night",
+        date: "2025-05-16",
+        venue: "Club Tivoli",
+        duration: "42:15",
+        warning: true
+      },
+      acoustic: {
+        title: "Acoustic Lounge",
+        date: "2025-05-23",
+        venue: "Bistro 44",
+        duration: "28:40",
+        warning: false
+      },
+      wedding: {
+        title: "Wedding Reception",
+        date: "2025-06-07",
+        venue: "Taj Resort Ballroom",
+        duration: "55:10",
+        warning: false
+      }
+    };
+
+    const navItems = document.querySelectorAll(".setlist-nav-item");
+    const titleEl = document.getElementById("active-setlist-title");
+    const dateEl = document.getElementById("active-setlist-date");
+    const venueEl = document.getElementById("active-setlist-venue");
+    const durationEl = document.getElementById("active-setlist-duration");
+    const bannerEl = document.getElementById("validation-banner");
+
+    navItems.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-setlist-id");
+        const data = setlistsData[id];
+        if (!data) return;
+
+        navItems.forEach((item) => {
+          item.classList.remove("bg-surface-container-high");
+          item.classList.add("bg-surface-container");
+          const label = item.querySelector("span.font-label-lg");
+          if (label) {
+            label.classList.remove("text-primary");
+            label.classList.add("text-on-surface");
+          }
+        });
+
+        btn.classList.remove("bg-surface-container");
+        btn.classList.add("bg-surface-container-high");
+        const activeLabel = btn.querySelector("span.font-label-lg");
+        if (activeLabel) {
+          activeLabel.classList.remove("text-on-surface");
+          activeLabel.classList.add("text-primary");
+        }
+
+        titleEl.textContent = data.title;
+        dateEl.textContent = data.date;
+        venueEl.textContent = data.venue;
+        durationEl.textContent = data.duration;
+        bannerEl.style.display = data.warning ? "flex" : "none";
+      });
+    });
+
+    const songList = document.getElementById("song-list-container");
+    let draggedItem = null;
+
+    function updateRowIndices() {
+      const rows = songList.querySelectorAll(".song-row");
+      rows.forEach((row, idx) => {
+        const indexEl = row.querySelector(".row-index");
+        if (indexEl) indexEl.textContent = String(idx + 1);
+      });
+      const badge = document.getElementById("song-count-badge");
+      if (badge) {
+        badge.textContent = `${rows.length} of 8 shown`;
+      }
+    }
+
+    songList.addEventListener("dragstart", (e) => {
+      const row = e.target.closest(".song-row");
+      if (!row) return;
+      draggedItem = row;
+      row.classList.add("opacity-50");
+    });
+
+    songList.addEventListener("dragend", (e) => {
+      const row = e.target.closest(".song-row");
+      if (row) row.classList.remove("opacity-50");
+      draggedItem = null;
+      updateRowIndices();
+    });
+
+    songList.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      const targetRow = e.target.closest(".song-row");
+      if (!targetRow || targetRow === draggedItem) return;
+      const rect = targetRow.getBoundingClientRect();
+      const after = e.clientY > rect.top + rect.height / 2;
+      if (after) {
+        targetRow.after(draggedItem);
+      } else {
+        targetRow.before(draggedItem);
+      }
+    });
+
+    songList.addEventListener("click", (e) => {
+      const removeBtn = e.target.closest(".remove-song-btn");
+      if (!removeBtn) return;
+      const row = removeBtn.closest(".song-row");
+      if (row) {
+        if (row.getAttribute("data-song-id") === "besame-mucho" && bannerEl) {
+          bannerEl.style.display = "none";
+        }
+        row.remove();
+        updateRowIndices();
+      }
+    });
+  })();
+</script></main></div></body></html>

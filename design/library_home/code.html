@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"secondary-fixed":"#ffddb8","outline-variant":"#534434","on-background":"#e2e2e8","tertiary-fixed-dim":"#7fd0ff","inverse-on-surface":"#2f3035","surface-container-highest":"#333539","on-tertiary-fixed":"#001e2d","primary-container":"#f59e0b","on-primary-fixed-variant":"#653e00","on-secondary-fixed-variant":"#62400f","on-tertiary":"#00344a","surface-bright":"#37393e","outline":"#a08e7a","inverse-surface":"#e2e2e8","surface":"#111317","error":"#ffb4ab","surface-container-low":"#1a1c20","secondary-container":"#62400f","primary-fixed":"#ffddb8","inverse-primary":"#855300","on-primary":"#472a00","on-secondary-container":"#ddac72","surface-container-lowest":"#0c0e12","on-primary-fixed":"#2a1700","error-container":"#93000a","on-tertiary-container":"#004966","primary-fixed-dim":"#ffb95f","surface-tint":"#ffb95f","on-secondary-fixed":"#2a1700","secondary":"#f0bd82","tertiary-fixed":"#c5e7ff","on-error-container":"#ffdad6","on-secondary":"#472a00","on-error":"#690005","on-surface":"#e2e2e8","surface-container":"#1e2024","on-surface-variant":"#d8c3ad","on-tertiary-fixed-variant":"#004c6a","surface-dim":"#111317","on-primary-container":"#613b00","surface-container-high":"#282a2e","tertiary-container":"#1abdff","tertiary":"#8fd5ff","background":"#111317","primary":"#ffc174","surface-variant":"#333539","secondary-fixed-dim":"#f0bd82"},"borderRadius":{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},"spacing":{"space-sm":"0.5rem","space-lg":"1.5rem","gutter":"1rem","space-xl":"2rem","space-xs":"0.25rem","margin":"1.5rem","space-md":"1rem"},"fontFamily":{"body-md":["\"Noto Sans, Noto Sans Devanagari\""],"display-stage":["\"Noto Sans, Noto Sans Devanagari\""],"headline-md":["\"Noto Sans, Noto Sans Devanagari\""],"display-stage-mobile":["\"Noto Sans, Noto Sans Devanagari\""],"label-lg":["\"Noto Sans, Noto Sans Devanagari\""],"label-sm":["\"Noto Sans, Noto Sans Devanagari\""],"body-sm":["\"Noto Sans, Noto Sans Devanagari\""],"title-md":["\"Noto Sans, Noto Sans Devanagari\""],"headline-sm":["\"Noto Sans, Noto Sans Devanagari\""],"label-md":["\"Noto Sans, Noto Sans Devanagari\""],"headline-lg":["\"Noto Sans, Noto Sans Devanagari\""]},"fontSize":{"body-md":["14px",{"lineHeight":"20px","fontWeight":"400"}],"display-stage":["64px",{"lineHeight":"76px","letterSpacing":"-0.02em","fontWeight":"700"}],"headline-md":["24px",{"lineHeight":"32px","fontWeight":"600"}],"display-stage-mobile":["36px",{"lineHeight":"44px","letterSpacing":"-0.01em","fontWeight":"700"}],"label-lg":["14px",{"lineHeight":"20px","letterSpacing":"0.01em","fontWeight":"500"}],"label-sm":["11px",{"lineHeight":"14px","letterSpacing":"0.04em","fontWeight":"600"}],"body-sm":["13px",{"lineHeight":"18px","fontWeight":"400"}],"title-md":["16px",{"lineHeight":"24px","fontWeight":"600"}],"headline-sm":["20px",{"lineHeight":"28px","fontWeight":"600"}],"label-md":["12px",{"lineHeight":"16px","letterSpacing":"0.02em","fontWeight":"500"}],"headline-lg":["32px",{"lineHeight":"40px","fontWeight":"600"}]}}}};</script></head><body class="bg-surface font-body-md text-body-md text-on-surface"><aside class="fixed left-0 top-0 h-full w-[220px] bg-surface-container-low z-50 flex flex-col py-space-lg px-space-md"><div class="mb-space-lg px-space-xs"><div class="flex items-center justify-between mb-space-sm"><span class="font-title-md text-title-md text-primary tracking-tight">Karaoke Manager</span><button aria-label="Collapse sidebar" class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-[20px]">chevron_left</span></button></div><div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-label-sm"><span class="w-1.5 h-1.5 rounded-full bg-primary-container"></span><span class="truncate">Offline • Documents/Karaoke/</span></div></div><nav class="flex-1 flex flex-col gap-space-xs" data-active-classes="bg-primary-container text-on-primary-container"><a aria-current="page" class="min-h-[44px] flex items-center gap-3 px-3 rounded-xl font-label-lg transition-colors bg-primary-container text-on-primary-container" data-path="library" href="#"><span class="material-symbols-outlined text-[20px]">library_music</span><span>Library</span></a><a class="min-h-[44px] flex items-center gap-3 px-3 rounded-xl font-label-lg text-label-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="song-editor" href="#"><span class="material-symbols-outlined text-[20px]">edit_note</span><span>Song Editor</span></a><a class="min-h-[44px] flex items-center gap-3 px-3 rounded-xl font-label-lg text-label-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="setlists" href="#"><span class="material-symbols-outlined text-[20px]">queue_music</span><span>Setlists</span></a><a class="min-h-[44px] mt-space-sm flex items-center gap-3 px-3 rounded-xl font-label-lg text-label-lg bg-primary-container text-on-primary-container hover:bg-primary hover:text-on-primary transition-colors" data-path="stage-mode" href="#"><span class="material-symbols-outlined text-[20px]">mic_external_on</span><span>Stage Mode</span></a></nav><div class="pt-space-md"><nav class="flex flex-col gap-space-xs" data-active-classes="bg-primary-container text-on-primary-container"><a class="min-h-[44px] flex items-center gap-3 px-3 rounded-xl font-label-lg text-label-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="settings" href="#"><span class="material-symbols-outlined text-[20px]">settings</span><span>Settings</span></a></nav></div></aside><div class="pl-[220px]"><header class="fixed top-0 left-[220px] right-0 h-16 bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-end px-margin gap-space-md"><div class="flex items-center gap-space-sm"><span class="font-label-md text-label-md text-on-surface-variant">Ryan</span><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></header><main class="w-full pt-16 px-margin bg-surface min-h-screen"><div class="flex flex-col w-full gap-space-lg pb-space-xl">
+<!-- Top Bar: Search, Filters, and Song Count -->
+<section class="flex flex-col gap-space-md pt-space-md">
+<div class="flex flex-wrap items-center justify-between gap-space-md">
+<div class="flex flex-1 min-w-[280px] max-w-xl items-center gap-space-sm bg-surface-container-low rounded-xl px-3.5 h-[44px] shadow-sm focus-within:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[20px] text-on-surface-variant">search</span>
+<input aria-label="Search title or artist" class="w-full bg-transparent text-on-surface placeholder:text-on-surface-variant/60 font-body-md text-body-md focus:outline-none" id="library-search" placeholder="Search title or artist..." type="text"/>
+<kbd class="hidden sm:inline-flex items-center px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-label-sm text-label-sm">/</kbd>
+</div>
+<div class="flex flex-wrap items-center gap-space-sm">
+<!-- Language Filter -->
+<div class="relative">
+<select aria-label="Filter by Language" class="appearance-none h-[44px] pl-3.5 pr-9 rounded-xl bg-surface-container-low text-on-surface font-label-lg text-label-lg hover:bg-surface-container transition-colors cursor-pointer focus:outline-none" id="filter-language">
+<option value="all">Language: All</option>
+<option value="English">English</option>
+<option value="Hindi">Hindi</option>
+<option value="Konkani">Konkani</option>
+<option value="Spanish">Spanish</option>
+</select>
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2">expand_more</span>
+</div>
+<!-- Status Filter -->
+<div class="relative">
+<select aria-label="Filter by Status" class="appearance-none h-[44px] pl-3.5 pr-9 rounded-xl bg-surface-container-low text-on-surface font-label-lg text-label-lg hover:bg-surface-container transition-colors cursor-pointer focus:outline-none" id="filter-status">
+<option value="all">Status: All</option>
+<option value="Ready">Ready</option>
+<option value="Needs Sync">Needs Sync</option>
+<option value="Needs Lyrics">Needs Lyrics</option>
+<option value="Processing">Processing</option>
+</select>
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2">expand_more</span>
+</div>
+<!-- Tag Filter -->
+<div class="relative">
+<select aria-label="Filter by Tag" class="appearance-none h-[44px] pl-3.5 pr-9 rounded-xl bg-surface-container-low text-on-surface font-label-lg text-label-lg hover:bg-surface-container transition-colors cursor-pointer focus:outline-none" id="filter-tag">
+<option value="all">Tag: All</option>
+<option value="Acoustic">Acoustic</option>
+<option value="Classic">Classic</option>
+<option value="Ballad">Ballad</option>
+<option value="Upbeat">Upbeat</option>
+</select>
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2">expand_more</span>
+</div>
+<!-- Song Count Badge -->
+<div class="h-[44px] px-4 rounded-xl bg-surface-container flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary-container"></span>
+<span class="font-label-lg text-label-lg text-on-surface tabular-nums" id="song-count-badge">50 songs</span>
+</div>
+</div>
+</div>
+<!-- Subtle Stage Readiness Strip -->
+<div class="flex flex-wrap items-center justify-between gap-space-md px-4 py-3 rounded-xl bg-surface-container-low">
+<div class="flex items-center gap-space-lg">
+<div class="flex items-center gap-2">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Stage Readiness</span>
+<span class="font-title-md text-title-md text-primary tabular-nums">84%</span>
+</div>
+<div class="hidden sm:flex items-center gap-3 w-48 h-2 rounded-full bg-surface-container-high overflow-hidden">
+<div class="h-full bg-primary-container rounded-full" style="width: 84%"></div>
+</div>
+</div>
+<div class="flex items-center gap-space-md font-label-md text-label-md text-on-surface-variant">
+<span class="inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>42 Ready</span>
+<span class="inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-primary-container"></span>4 Needs Sync</span>
+<span class="inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-error"></span>2 Needs Lyrics</span>
+<span class="inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-outline"></span>2 Processing</span>
+</div>
+</div>
+</section>
+<!-- Bulk Action Bar (Hidden by default, shown when rows are selected) -->
+<div class="hidden items-center justify-between gap-space-md px-4 py-2.5 rounded-xl bg-surface-container-high shadow-md transition-all" id="bulk-action-bar">
+<div class="flex items-center gap-3">
+<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary-container text-on-primary-container font-label-md text-label-md tabular-nums" id="selected-count">0</span>
+<span class="font-label-lg text-label-lg text-on-surface">songs selected</span>
+</div>
+<div class="flex items-center gap-space-sm">
+<button class="h-[44px] px-4 rounded-xl bg-surface-container text-on-surface-variant hover:text-on-surface hover:bg-surface-bright font-label-lg text-label-lg transition-colors" id="clear-selection-btn" type="button">
+        Clear
+      </button>
+<button class="h-[44px] px-5 rounded-xl bg-primary-container text-on-primary-container hover:bg-primary hover:text-on-primary font-label-lg text-label-lg inline-flex items-center gap-2 transition-colors shadow-sm" id="add-to-setlist-btn" type="button">
+<span class="material-symbols-outlined text-[20px]">playlist_add</span>
+<span>Add to Setlist</span>
+</button>
+</div>
+</div>
+<!-- Dense, Calm, Keyboard-Navigable Library Table -->
+<section class="w-full rounded-xl bg-surface-container-low shadow-sm overflow-hidden">
+<div class="w-full overflow-x-auto">
+<table class="w-full text-left border-collapse" id="library-table">
+<thead>
+<tr class="bg-surface-container text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider h-[44px]">
+<th class="w-[52px] pl-2 pr-1">
+<label class="w-[44px] h-[44px] flex items-center justify-center cursor-pointer">
+<input aria-label="Select all songs" class="w-5 h-5 rounded accent-primary-container cursor-pointer" id="select-all-checkbox" type="checkbox"/>
+</label>
+</th>
+<th class="px-3">Title</th>
+<th class="px-3">Artist</th>
+<th class="px-3">Language</th>
+<th class="px-3">Key</th>
+<th class="px-3 text-right">BPM</th>
+<th class="px-3 text-right">Duration</th>
+<th class="px-3">Status</th>
+<th class="px-3 text-right pr-4">Actions</th>
+</tr>
+</thead>
+<tbody class="font-body-md text-body-md" id="library-tbody">
+<!-- Row 1 -->
+<tr class="library-row h-[52px] bg-surface-container-low hover:bg-surface-container-high focus:bg-surface-container-high focus:outline-none transition-colors cursor-pointer" data-artist="Traditional" data-language="Konkani" data-status="Ready" data-tag="Acoustic" data-title="godacho-panv" tabindex="0">
+<td class="pl-2 pr-1">
+<label class="w-[44px] h-[44px] flex items-center justify-center cursor-pointer">
+<input aria-label="Select godacho-panv" class="row-checkbox w-5 h-5 rounded accent-primary-container cursor-pointer" type="checkbox"/>
+</label>
+</td>
+<td class="px-3 font-title-md text-title-md text-on-surface">godacho-panv</td>
+<td class="px-3 text-on-surface-variant">Traditional</td>
+<td class="px-3 text-on-surface-variant">Konkani</td>
+<td class="px-3 font-label-md text-label-md text-on-surface tabular-nums">Gm → Am</td>
+<td class="px-3 text-right text-on-surface-variant tabular-nums">129 BPM</td>
+<td class="px-3 text-right text-on-surface-variant tabular-nums">3:42</td>
+<td class="px-3">
+<span class="inline-flex items-center gap-1.5 h-[24px] px-2.5 rounded-full bg-tertiary/15 text-tertiary font-label-md text-label-md">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                Ready
+              </span>
+</td>
+<td class="px-3 pr-4">
+<div class="flex items-center justify-end gap-2">
+<button aria-label="Play 15s preview for godacho-panv" class="preview-btn h-[36px] px-3 rounded-lg bg-surface-container hover:bg-surface-bright text-on-surface font-label-md text-label-md inline-flex items-center gap-1.5 transition-colors" data-preview="godacho-panv" type="button">
+<span class="material-symbols-outlined text-[18px] text-primary">play_arrow</span>
+<span>15s</span>
+</button>
+<button class="h-[36px] px-3 rounded-lg bg-surface-container hover:bg-primary-container hover:text-on-primary-container text-on-surface font-label-md text-label-md transition-colors" type="button">
+                  Open
+                </button>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="library-row h-[52px] bg-surface hover:bg-surface-container-high focus:bg-surface-container-high focus:outline-none transition-colors cursor-pointer" data-artist="Lata Mangeshkar" data-language="Hindi" data-status="Ready" data-tag="Classic" data-title="Lag Ja Gale" tabindex="0">
+<td class="pl-2 pr-1">
+<label class="w-[44px] h-[44px] flex items-center justify-center cursor-pointer">
+<input aria-label="Select Lag Ja Gale" class="row-checkbox w-5 h-5 rounded accent-primary-container cursor-pointer" type="checkbox"/>
+</label>
+</td>
+<td class="px-3 font-title-md text-title-md text-on-surface">Lag Ja Gale</td>
+<td class="px-3 text-on-surface-variant">Lata Mangeshkar</td>
+<td class="px-3 text-on-surface-variant">Hindi</td>
+<td class="px-3 font-label-md text-label-md text-on-surface tabular-nums">C#m</td>
+<td class="px-3 text-right text-on-surface-variant tabular-nums">76 BPM</td>
+<td class="px-3 text-right text-on-surface-variant tabular-nums">4:18</td>
+<td class="px-3">
+<span class="inline-flex items-center gap-1.5 h-[24px] px-2.5 rounded-full bg-tertiary/15 text-tertiary font-label-md text-label-md">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                Ready
+              </span>
+</td>
+<td class="px-3 pr-4">
+<div class="flex items-center justify-end gap-2">
+<button aria-label="Play 15s preview for Lag Ja Gale" class="preview-btn h-[36px] px-3 rounded-lg bg-surface-container hover:bg-surface-bright text-on-surface font-label-md text-label-md inline-flex items-center gap-1.5 transition-colors" data-preview="Lag Ja Gale" type="button">
+<span class="material-symbols-outlined text-[18px] text-primary">play_arrow</span>
+<span>15s</span>
+</button>
+<button class="h-[36px] px-3 rounded-lg bg-surface-container hover:bg-primary-container hover:text-on-primary-container text-on-surface font-label-md text-label-md transition-colors" type="button">
+                  Open
+                </button>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="library-row h-[52px] bg-surface-container-low hover:bg-surface-container-high focus:bg-surface-container-high focus:outline-none transition-colors cursor-pointer" data-artist="Consuelo Velázquez" data-language="Spanish" data-status="Needs Sync" data-tag="Classic" data-title="Bésame Mucho" tabindex="0">
+<td class="pl-2 pr-1">
+<label class="w-[44px] h-[44px] flex items-center justify-center cursor-pointer">
+<input aria-label="Select Bésame Mucho" class="row-checkbox w-5 h-5 rounded accent-primary-container cursor-pointer" type="checkbox"/>
+</label>
+</td>
+<td class="px-3 font-title-md text-title-md text-on-surface">Bésame Mucho</td>
+<td class="px-3 text-on-surface-variant">Consuelo Velázquez</td>
+<td class="px-3 text-on-surface-variant">Spanish</td>
+<td class="px-3 font-label-md text-label-md text-on-surface tabular-nums">Dm → Em</td>
+<td class="px-3 text-right text-on-surface-variant tabular-nums">92 BPM</td>
+<td class="px-3 text-right text-on-surface-variant tabular-nums">3:15</td>
+<td class="px-3">
+<span class="inline-flex items-center gap-1.5 h-[24px] px-2.5 rounded-full bg-primary-container/15 text-primary font-label-md text-label-md">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container"></span>
+                Needs Sync
+              </span>
+</td>
+<td class="px-3 pr-4">
+<div class="flex items-center justify-end gap-2">
+<button aria-label="Play 15s preview for Bésame Mucho" class="preview-btn h-[36px] px-3 rounded-lg bg-surface-container hover:bg-surface-bright text-on-surface font-label-md text-label-md inline-flex items-center gap-1.5 transition-colors" data-preview="Bésame Mucho" type="button">
+<span class="material-symbols-outlined text-[18px] text-primary">play_arrow</span>
+<span>15s</span>
+</button>
+<button class="h-[36px] px-3 rounded-lg bg-surface-container hover:bg-primary-container hover:text-on-primary-container text-on-surface font-label-md text-label-md transition-colors" type="button">
+                  Open
+                </button>
+</div>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="library-row h-[52px] bg-surface hover:bg-surface-container-high focus:bg-surface-container-high focus:outline-none transition-colors cursor-pointer" data-artist="Frank Sinatra" data-language="English" data-status="Ready" data-tag="Classic" data-title="Fly Me to the Moon" tabindex="0">
+<td class="pl-2 pr-1">
+<label class="w-[44px] h-[44px] flex items-center justify-center cursor-pointer">
+<input aria-label="Select Fly Me to the Moon" class="row-checkbox w-5 h-5 rounded accent-primary-container cursor-pointer" type="checkbox"/>
+</label>
+</td>
+<td class="px-3 font-title-md text-title-md text-on-surface">Fly Me to the Moon</td>
+<td class="px-3 text-on-surface-variant">Frank Sinatra</td>
+<td class="px-3 text-on-surface-variant">English</td>
+<td class="px-3 font-label-md text-label-md text-on-surface tabular-nums">Am</td>
+<td class="px-3 text-right text-on-surface-variant tabular-nums">118 BPM</td>
+<td class="px-3 text-right text-on-surface-variant tabular-nums">2:27</td>
+<td class="px-3">
+<span class="inline-flex items-center gap-1.5 h-[24px] px-2.5 rounded-full bg-tertiary/15 text-tertiary font-label-md text-label-md">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                Ready
+              </span>
+</td>
+<td class="px-3 pr-4">
+<div class="flex items-center justify-end gap-2">
+<button aria-label="Play 15s preview for Fly Me to the Moon" class="preview-btn h-[36px] px-3 rounded-lg bg-surface-container hover:bg-surface-bright text-on-surface font-label-md text-label-md inline-flex items-center gap-1.5 transition-colors" data-preview="Fly Me to the Moon" type="button">
+<span class="material-symbols-outlined text-[18px] text-primary">play_arrow</span>
+<span>15s</span>
+</button>
+<button class="h-[36px] px-3 rounded-lg bg-surface-container hover:bg-primary-container hover:text-on-primary-container text-on-surface font-label-md text-label-md transition-colors" type="button">
+                  Open
+                </button>
+</div>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="library-row h-[52px] bg-surface-container-low hover:bg-surface-container-high focus:bg-surface-container-high focus:outline-none transition-colors cursor-pointer" data-artist="Arijit Singh" data-language="Hindi" data-status="Needs Lyrics" data-tag="Ballad" data-title="Tum Hi Ho" tabindex="0">
+<td class="pl-2 pr-1">
+<label class="w-[44px] h-[44px] flex items-center justify-center cursor-pointer">
+<input aria-label="Select Tum Hi Ho" class="row-checkbox w-5 h-5 rounded accent-primary-container cursor-pointer" type="checkbox"/>
+</label>
+</td>
+<td class="px-3 font-title-md text-title-md text-on-surface">Tum Hi Ho</td>
+<td class="px-3 text-on-surface-variant">Arijit Singh</td>
+<td class="px-3 text-on-surface-variant">Hindi</td>
+<td class="px-3 font-label-md text-label-md text-on-surface tabular-nums">Fm</td>
+<td class="px-3 text-right text-on-surface-variant tabular-nums">94 BPM</td>
+<td class="px-3 text-right text-on-surface-variant tabular-nums">4:22</td>
+<td class="px-3">
+<span class="inline-flex items-center gap-1.5 h-[24px] px-2.5 rounded-full bg-error/15 text-error font-label-md text-label-md">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+                Needs Lyrics
+              </span>
+</td>
+<td class="px-3 pr-4">
+<div class="flex items-center justify-end gap-2">
+<button aria-label="Play 15s preview for Tum Hi Ho" class="preview-btn h-[36px] px-3 rounded-lg bg-surface-container hover:bg-surface-bright text-on-surface font-label-md text-label-md inline-flex items-center gap-1.5 transition-colors" data-preview="Tum Hi Ho" type="button">
+<span class="material-symbols-outlined text-[18px] text-primary">play_arrow</span>
+<span>15s</span>
+</button>
+<button class="h-[36px] px-3 rounded-lg bg-surface-container hover:bg-primary-container hover:text-on-primary-container text-on-surface font-label-md text-label-md transition-colors" type="button">
+                  Open
+                </button>
+</div>
+</td>
+</tr>
+<!-- Row 6 -->
+<tr class="library-row h-[52px] bg-surface hover:bg-surface-container-high focus:bg-surface-container-high focus:outline-none transition-colors cursor-pointer" data-artist="Marc Anthony" data-language="Spanish" data-status="Processing" data-tag="Upbeat" data-title="Vivir Mi Vida" tabindex="0">
+<td class="pl-2 pr-1">
+<label class="w-[44px] h-[44px] flex items-center justify-center cursor-pointer">
+<input aria-label="Select Vivir Mi Vida" class="row-checkbox w-5 h-5 rounded accent-primary-container cursor-pointer" type="checkbox"/>
+</label>
+</td>
+<td class="px-3 font-title-md text-title-md text-on-surface">Vivir Mi Vida</td>
+<td class="px-3 text-on-surface-variant">Marc Anthony</td>
+<td class="px-3 text-on-surface-variant">Spanish</td>
+<td class="px-3 font-label-md text-label-md text-on-surface tabular-nums">Cm</td>
+<td class="px-3 text-right text-on-surface-variant tabular-nums">105 BPM</td>
+<td class="px-3 text-right text-on-surface-variant tabular-nums">4:12</td>
+<td class="px-3">
+<span class="inline-flex items-center gap-1.5 h-[24px] px-2.5 rounded-full bg-outline/20 text-on-surface-variant font-label-md text-label-md">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+                Processing
+              </span>
+</td>
+<td class="px-3 pr-4">
+<div class="flex items-center justify-end gap-2">
+<button aria-label="Play 15s preview for Vivir Mi Vida" class="preview-btn h-[36px] px-3 rounded-lg bg-surface-container hover:bg-surface-bright text-on-surface font-label-md text-label-md inline-flex items-center gap-1.5 transition-colors" data-preview="Vivir Mi Vida" type="button">
+<span class="material-symbols-outlined text-[18px] text-primary">play_arrow</span>
+<span>15s</span>
+</button>
+<button class="h-[36px] px-3 rounded-lg bg-surface-container hover:bg-primary-container hover:text-on-primary-container text-on-surface font-label-md text-label-md transition-colors" type="button">
+                  Open
+                </button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Keyboard Navigation Hint -->
+<div class="flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm px-1">
+<div class="flex items-center gap-space-md">
+<span><kbd class="px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface">↑</kbd> <kbd class="px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface">↓</kbd> Navigate</span>
+<span><kbd class="px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface">Space</kbd> Select</span>
+<span><kbd class="px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface">Enter</kbd> Open</span>
+</div>
+<span>Showing 6 of 50 offline tracks</span>
+</div>
+</div>
+<script>
+  (function () {
+    const searchInput = document.getElementById('library-search');
+    const langSelect = document.getElementById('filter-language');
+    const statusSelect = document.getElementById('filter-status');
+    const tagSelect = document.getElementById('filter-tag');
+    const rows = Array.from(document.querySelectorAll('.library-row'));
+    const selectAllCheckbox = document.getElementById('select-all-checkbox');
+    const rowCheckboxes = Array.from(document.querySelectorAll('.row-checkbox'));
+    const bulkBar = document.getElementById('bulk-action-bar');
+    const selectedCountEl = document.getElementById('selected-count');
+    const clearBtn = document.getElementById('clear-selection-btn');
+    const previewBtns = Array.from(document.querySelectorAll('.preview-btn'));
+
+    function filterRows() {
+      const q = searchInput.value.trim().toLowerCase();
+      const lang = langSelect.value;
+      const status = statusSelect.value;
+      const tag = tagSelect.value;
+
+      rows.forEach((row) => {
+        const title = row.dataset.title.toLowerCase();
+        const artist = row.dataset.artist.toLowerCase();
+        const rowLang = row.dataset.language;
+        const rowStatus = row.dataset.status;
+        const rowTag = row.dataset.tag;
+
+        const matchesSearch = !q || title.includes(q) || artist.includes(q);
+        const matchesLang = lang === 'all' || rowLang === lang;
+        const matchesStatus = status === 'all' || rowStatus === status;
+        const matchesTag = tag === 'all' || rowTag === tag;
+
+        row.style.display = matchesSearch && matchesLang && matchesStatus && matchesTag ? '' : 'none';
+      });
+    }
+
+    function updateBulkBar() {
+      const checked = rowCheckboxes.filter((cb) => cb.checked);
+      selectedCountEl.textContent = checked.length;
+      if (checked.length > 0) {
+        bulkBar.classList.remove('hidden');
+        bulkBar.classList.add('flex');
+      } else {
+        bulkBar.classList.add('hidden');
+        bulkBar.classList.remove('flex');
+      }
+      selectAllCheckbox.checked = checked.length > 0 && checked.length === rowCheckboxes.length;
+    }
+
+    searchInput.addEventListener('input', filterRows);
+    langSelect.addEventListener('change', filterRows);
+    statusSelect.addEventListener('change', filterRows);
+    tagSelect.addEventListener('change', filterRows);
+
+    selectAllCheckbox.addEventListener('change', () => {
+      rowCheckboxes.forEach((cb) => {
+        if (cb.closest('tr').style.display !== 'none') {
+          cb.checked = selectAllCheckbox.checked;
+        }
+      });
+      updateBulkBar();
+    });
+
+    rowCheckboxes.forEach((cb) => {
+      cb.addEventListener('change', updateBulkBar);
+    });
+
+    clearBtn.addEventListener('click', () => {
+      rowCheckboxes.forEach((cb) => (cb.checked = false));
+      selectAllCheckbox.checked = false;
+      updateBulkBar();
+    });
+
+    previewBtns.forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const icon = btn.querySelector('.material-symbols-outlined');
+        const isPlaying = icon.textContent === 'pause';
+        previewBtns.forEach((b) => {
+          b.querySelector('.material-symbols-outlined').textContent = 'play_arrow';
+        });
+        if (!isPlaying) {
+          icon.textContent = 'pause';
+        }
+      });
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === '/' && document.activeElement !== searchInput) {
+        e.preventDefault();
+        searchInput.focus();
+      }
+    });
+
+    rows.forEach((row, index) => {
+      row.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          const next = rows[index + 1];
+          if (next) next.focus();
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          const prev = rows[index - 1];
+          if (prev) prev.focus();
+        } else if (e.key === ' ') {
+          e.preventDefault();
+          const cb = row.querySelector('.row-checkbox');
+          cb.checked = !cb.checked;
+          updateBulkBar();
+        }
+      });
+    });
+  })();
+</script></main></div></body></html>
