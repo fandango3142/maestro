@@ -7,7 +7,7 @@ Owner: Ryan (performer, the only user). Readers: Ryan, Claude, and any agent hel
 
 **Status (update as work lands)**
 - Studio: vocal separation + key/BPM detection working on the GPU box. Drop folder (`~/Desktop/Karaoke Inbox` on the box) auto-processes songs.
-- Studio next: backing-vocal split (choosing a model), lyrics (local LRCLIB copy, auto-sync, tap-to-sync), key/tempo render.
+- Studio next: backing-vocal split (Ryan picking between becruily mel-band and frazer-becruily BS models), verify key detection against known keys, lyrics (local LRCLIB copy, auto-sync, tap-to-sync), key/tempo render.
 - App: mockups for 5 screens in `design/` (code.html + screen.png each); design tokens in `design/stage_ready_karaoke_manager/DESIGN.md`. Flutter app (`app/`) package 1 done: Library + one-screen Stage mode, reading `Documents/Karaoke/library`. Next: setlists, song editor + tap-to-sync, two-screen stage.
 
 **Decisions**
@@ -15,7 +15,7 @@ Owner: Ryan (performer, the only user). Readers: Ryan, Claude, and any agent hel
 |---|---|
 | Everything self-hosted; no third-party processing services, no scraping streaming sites | Their terms can change; copyright |
 | Change key on real audio (no MIDI) | Sounds like the record |
-| Vocal model: BS-RoFormer Viperx 1297, overlap 2 | Best instrumental quality; overlap 2 for speed (timing test pending) |
+| Vocal model: BS-RoFormer Viperx 1297, overlap 2 | Best instrumental quality; overlap 2 = 7.5 min per 4-min song on GTX 1650 (vs 16 min), inaudible difference |
 | Key/tempo pre-rendered per song (Signalsmith Stretch, MIT) | Nothing heavy runs on stage |
 | Plain files (song.json, LRC), no database | Enough for 500 songs; copies straight to the iPad |
 | Git remote = the GPU box directly; audio never in git | Size, copyright |

@@ -3,6 +3,7 @@ Description=Process songs when files land in ~/karaoke/inbox
 
 [Path]
 PathChanged=%h/karaoke/inbox
+PathChanged=%h/karaoke/inbox-backing
 
 [Install]
 WantedBy=default.target
