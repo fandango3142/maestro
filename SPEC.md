@@ -27,6 +27,7 @@ Owner: Ryan (performer, the only user). Readers: Ryan, Claude, and any agent hel
 | Key/tempo pre-rendered per song (Signalsmith Stretch, MIT) | Nothing heavy runs on stage |
 | Plain files (song.json, LRC), no database | Enough for 500 songs; copies straight to the iPad |
 | Git remote = the GPU box directly; audio never in git | Size, copyright |
+| Auto lyric sync for English/Spanish/Hindi (local Whisper word timing, study nomadkaraoke/karaoke-gen first); Konkani = manual tap-sync | Whisper has no Konkani; Ryan is fine syncing those by hand. Keep building Maestro rather than adopting an existing repo (none does stage mode/setlists/offline iPad, several need paid or external APIs) |
 
 **Machines**
 - **Dev laptop** (Windows, AMD GPU, 24GB RAM): build here; app, lyrics database and lyric sync run here.
