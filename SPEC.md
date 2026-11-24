@@ -29,11 +29,38 @@ Owner: Ryan (performer, the only user). Readers: Ryan, Claude, and any agent hel
 `studio.py` turns each audio file dropped into `inbox/` into `library/<song-id>/`. Steps:
 1. Separate → `instrumental.flac`, `vocals.flac` (done)
 2. Detect key + BPM → `song.json` (done)
-3. Split vocals → `lead_vocals.flac`, `backing_vocals.flac` (testing models)
+3. Split vocals → `lead_vocals.flac`, `backing_vocals.flac`. **Opt-in** via `inbox-backing/` (box desktop: "Karaoke Inbox (keep backing)"), model `mel_band_roformer_karaoke_becruily` (done). Opt-in because on songs with no backing vocals the model mislabels parts of the lead as backing.
 4. Lyrics: fetch from the local LRCLIB copy → align with ctc-forced-aligner on the vocal track (planned)
 5. Render key/tempo/mix → `render/<hash>.flac` (planned)
 
 Run on the box: drop files into the inbox (auto), or `~/karaoke/studio/run.sh`. Log: `tail -f ~/karaoke/studio.log`.
+
+### GPU findings (measured on the GTX 1650 4GB laptop, 2026-11-24)
+| Test | Result |
+|---|---|
+| Full 4:05 song, vocal separation, overlap 4 (model default) | ~16 min |
+| Same song, overlap 2 (current) | **452 s (7.5 min)**, output diff SNR 39 dB = inaudible |
+| fp16 autocast | ~2x **slower** (GTX 16-series has no tensor cores) |
+| 30 s clip: batch 1 vs 2, cudnn.benchmark | all 48.9–49.6 s, so the card is compute-bound |
+| VRAM in use | ~1.6 GB (30 s clip) to 3 GB (full song) of 4 GB. Spare VRAM does **not** speed it up |
+| Backing split (mel-band karaoke), on a 4 min vocal stem | 192 s |
+| 30 s clip, full pipeline with backing split | 149 s |
+| CPU only (dev laptop, AMD) | gave up after 54 min on one song |
+
+**Benchmark protocol for any new machine:** cut the reference clip with `ffmpeg -ss 60 -t 30 -i godacho-panv.mp3 clip.mp3`, drop it in the inbox, and read the seconds from the log. Baseline: **49 s** separation-only on the GTX 1650. Speed-up = 49 / new time.
+
+**Scaling estimate for other NVIDIA GPUs.** These are *estimates, not measured*: they come from relative compute plus tensor cores, and should be checked with the protocol above before buying. RTX cards also allow fp16 autocast (tensor cores), which is often a further ~1.5x and should be re-tested on each card.
+
+| GPU (laptop) | VRAM | Est. speed-up | Est. per 4-min song | Est. 500 songs (separation only) |
+|---|---|---|---|---|
+| GTX 1650 (measured) | 4 GB | 1x | 7.5 min | ~62 h |
+| RTX 3050 | 4–6 GB | ~2x | ~3.5–4 min | ~30 h |
+| RTX 3060 | 6 GB | ~3–4x | ~2–2.5 min | ~18 h |
+| RTX 4060 | 8 GB | ~4–5x | ~1.5–2 min | ~14 h |
+| RTX 4070 | 8 GB | ~5–6x | ~1.3–1.5 min | ~11 h |
+| RTX 4080 / 4090 / 50-series high end | 12–24 GB | ~8–12x | ~40–60 s | ~5–7 h |
+
+A desktop card is faster than the laptop chip with the same name (a laptop RTX 3060 runs at lower power than the desktop one), and a used desktop RTX 3060 12GB is the value pick. Buy for compute first and VRAM second: 8 GB+ removes any memory worries.
 
 ## 2. App: what this is
 
