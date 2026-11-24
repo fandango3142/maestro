@@ -177,11 +177,14 @@ class _StageScreenState extends State<StageScreen> {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         SizedBox(height: 24, child: dots > 0 ? _Dots(dots) : null),
         const SizedBox(height: 24),
-        Text(cur < 0 ? '' : lines[cur].text,
-            style: style.copyWith(color: K.accent), textAlign: TextAlign.center),
+        if (cur >= 0 && lines[cur].isBreak)
+          Text('♪  Instrumental', style: style.copyWith(color: K.muted, fontSize: big * 0.6))
+        else
+          Text(cur < 0 ? '' : lines[cur].text,
+              style: style.copyWith(color: K.accent), textAlign: TextAlign.center),
         const SizedBox(height: 24),
         for (final (i, off) in [(cur + 1, 0.75), (cur + 2, 0.45)])
-          if (i < lines.length)
+          if (i < lines.length && !lines[i].isBreak)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: Text(lines[i].text,

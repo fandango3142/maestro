@@ -23,6 +23,12 @@ void main() {
     expect(formatLrc(parseLrc('x\ny')), 'x\ny\n');
   });
 
+  test('instrumental break = timed line without words, round-trips', () {
+    final lines = parseLrc('[00:05.00]sing\n[00:20.00]\n[00:40.00]sing again');
+    expect(lines.map((l) => l.isBreak), [false, true, false]);
+    expect(formatLrc(lines), '[00:05.00]sing\n[00:20.00]\n[00:40.00]sing again\n');
+  });
+
   test('currentLine', () {
     final lines = parseLrc('[00:05]a\n[00:10]b');
     expect(currentLine(lines, const Duration(seconds: 1)), -1);

@@ -28,6 +28,7 @@ class _EditorScreenState extends State<EditorScreen> {
   final _keys = FocusNode();
   late List<LyricLine> _lines = [...widget.song.lyrics];
   int _sel = 0;
+  int? _lastTap; // for Backspace undo
   bool _dirty = false, _playing = false;
   Duration _pos = Duration.zero, _length = Duration.zero;
   Timer? _poll;
@@ -80,15 +81,52 @@ class _EditorScreenState extends State<EditorScreen> {
     });
   }
 
-  void _tap() {
+  /// Selected line starts now, then move on. [follow]: later lines keep their spacing (offset fix).
+  void _tap({bool follow = false}) {
     if (_lines.isEmpty) return;
     final old = _lines[_sel].time;
     setState(() {
       _lines[_sel] = LyricLine(_pos, _lines[_sel].text);
+      _lastTap = _sel;
       _dirty = true;
     });
-    if (old != null && _sel + 1 < _lines.length) _shift(_sel + 1, _pos - old);
+    if (follow && old != null && _sel + 1 < _lines.length) _shift(_sel + 1, _pos - old);
     _select(_sel + 1);
+  }
+
+  /// An instrumental break starts now: insert a marker before the selected line.
+  void _breakNow() {
+    setState(() {
+      _lines.insert(_sel, LyricLine(_pos, ''));
+      _lastTap = _sel;
+      _dirty = true;
+    });
+    _select(_sel + 1);
+  }
+
+  /// Missed a tap: clear the last tapped line, select it, rewind 3s.
+  void _undo() {
+    final i = _lastTap;
+    if (i == null) return;
+    setState(() {
+      _lines[i].isBreak ? _lines.removeAt(i) : _lines[i] = LyricLine(null, _lines[i].text);
+      _lastTap = i > 0 ? i - 1 : null;
+    });
+    _select(i);
+    _seek(_pos - const Duration(seconds: 3));
+  }
+
+  /// Clear timing from the selected line on, and jump to just before it to tap fresh.
+  void _resyncFromHere() {
+    setState(() {
+      for (var j = _sel; j < _lines.length; j++) {
+        _lines[j] = LyricLine(null, _lines[j].text);
+      }
+      _lastTap = null;
+      _dirty = true;
+    });
+    final prev = _sel > 0 ? _lines[_sel - 1].time : null;
+    _seek(prev == null ? Duration.zero : prev + const Duration(milliseconds: 500));
   }
 
   void _select(int i) {
@@ -118,7 +156,17 @@ class _EditorScreenState extends State<EditorScreen> {
       case LogicalKeyboardKey.space when e is KeyDownEvent:
         _toggle();
       case LogicalKeyboardKey.enter when e is KeyDownEvent:
-        _tap();
+        _tap(follow: big);
+      case LogicalKeyboardKey.backspace when e is KeyDownEvent:
+        _undo();
+      case LogicalKeyboardKey.keyB when e is KeyDownEvent:
+        _breakNow();
+      case LogicalKeyboardKey.delete when e is KeyDownEvent && _lines.isNotEmpty && _lines[_sel].isBreak:
+        setState(() {
+          _lines.removeAt(_sel);
+          _dirty = true;
+        });
+        _select(_sel);
       case LogicalKeyboardKey.arrowUp:
         _select(_sel - 1);
       case LogicalKeyboardKey.arrowDown:
@@ -225,13 +273,18 @@ class _EditorScreenState extends State<EditorScreen> {
       shiftBtn('−0.1s', -100),
       shiftBtn('+0.1s', 100),
       shiftBtn('+1s', 1000),
+      const SizedBox(width: 16),
+      OutlinedButton.icon(
+          onPressed: _resyncFromHere, icon: const Icon(Icons.restart_alt), label: const Text('Re-sync from here')),
       const Spacer(),
+      OutlinedButton.icon(onPressed: _breakNow, icon: const Icon(Icons.music_note), label: const Text('Instrumental now  (B)')),
+      const SizedBox(width: 12),
       SizedBox(
         height: 52,
         child: FilledButton.icon(
           onPressed: _tap,
-          icon: const Icon(Icons.touch_app),
-          label: const Text('TAP: selected line starts now  (Enter)'),
+          icon: const Icon(Icons.skip_next),
+          label: const Text('NEXT LINE NOW  (Enter)'),
         ),
       ),
     ]);
@@ -241,8 +294,8 @@ class _EditorScreenState extends State<EditorScreen> {
     final playing = currentLine(_lines, _pos);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Text(
-          'Space play/pause  •  Enter tap (later lines follow)  •  ↑ ↓ select  •  ← → nudge line 0.1s (Shift = 1s)'
-          '  •  Click a line to hear it  •  Ctrl+S save',
+          'Space play/pause  •  Enter = selected line starts now  •  Backspace undo tap  •  Shift+Enter tap + later lines follow'
+          '  •  B instrumental starts now (Del removes a break)  •  ↑ ↓ select  •  ← → nudge 0.1s (Shift 1s)  •  Click a line to hear it  •  Ctrl+S save',
           style: TextStyle(color: K.muted, fontSize: 12)),
       const SizedBox(height: 8),
       Expanded(
@@ -274,11 +327,12 @@ class _EditorScreenState extends State<EditorScreen> {
                           style: const TextStyle(color: K.muted, fontFeatures: K.tabular)),
                     ),
                     Expanded(
-                      child: Text(l.text,
+                      child: Text(l.isBreak ? '♪  Instrumental' : l.text,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 16,
-                            color: isPlaying ? K.accent : K.text,
+                            fontStyle: l.isBreak ? FontStyle.italic : null,
+                            color: isPlaying ? K.accent : (l.isBreak ? K.muted : K.text),
                             fontWeight: isPlaying ? FontWeight.w700 : FontWeight.w400,
                           )),
                     ),

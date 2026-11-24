@@ -4,6 +4,9 @@ class LyricLine {
   final Duration? time;
   final String text;
   const LyricLine(this.time, this.text);
+
+  /// Instrumental break marker: a timed line with no words (standard LRC), or a typed ♪.
+  bool get isBreak => text.isEmpty || text == '♪';
 }
 
 final _tag = RegExp(r'\[(\d+):(\d+(?:\.\d+)?)\]');
