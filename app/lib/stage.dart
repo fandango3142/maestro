@@ -37,6 +37,7 @@ class _StageScreenState extends State<StageScreen> {
   void initState() {
     super.initState();
     windowManager.setFullScreen(true);
+    _player.setReleaseMode(ReleaseMode.stop); // keep the file loaded so restart works after the end
     _player.onPlayerComplete.listen((_) {
       setState(() => _playing = false); // last song: stay on it, paused
       _cue(_index + 1);

@@ -36,6 +36,8 @@ class _EditorScreenState extends State<EditorScreen> {
   @override
   void initState() {
     super.initState();
+    // ReleaseMode.stop keeps the file loaded after the track ends, so you can seek back and keep syncing.
+    _player.setReleaseMode(ReleaseMode.stop);
     _player.setSource(DeviceFileSource(widget.song.audio.path)).then((_) async {
       final d = await _player.getDuration();
       if (mounted) setState(() => _length = d ?? Duration.zero);
@@ -117,7 +119,11 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   /// Clear timing from the selected line on, and jump to just before it to tap fresh.
+  /// Clear timing from the selected line on, rewind to just before the previous line and play,
+  /// so you hear the lead-in and can tap the selected line on time.
   void _resyncFromHere() {
+    final prev = _sel > 0 ? _lines[_sel - 1].time : null;
+    final own = _lines.isEmpty ? null : _lines[_sel].time;
     setState(() {
       for (var j = _sel; j < _lines.length; j++) {
         _lines[j] = LyricLine(null, _lines[j].text);
@@ -125,8 +131,9 @@ class _EditorScreenState extends State<EditorScreen> {
       _lastTap = null;
       _dirty = true;
     });
-    final prev = _sel > 0 ? _lines[_sel - 1].time : null;
-    _seek(prev == null ? Duration.zero : prev + const Duration(milliseconds: 500));
+    const lead = Duration(seconds: 1);
+    _seek(prev != null ? prev - lead : (own != null ? own - const Duration(seconds: 4) : Duration.zero));
+    if (!_playing) _toggle();
   }
 
   void _select(int i) {
@@ -151,7 +158,6 @@ class _EditorScreenState extends State<EditorScreen> {
     if (FocusManager.instance.primaryFocus?.context?.widget is EditableText) return KeyEventResult.ignored;
     final ctrl = HardwareKeyboard.instance.isControlPressed;
     final big = HardwareKeyboard.instance.isShiftPressed;
-    final step = Duration(milliseconds: big ? 1000 : 100);
     switch (e.logicalKey) {
       case LogicalKeyboardKey.space when e is KeyDownEvent:
         _toggle();
@@ -172,9 +178,13 @@ class _EditorScreenState extends State<EditorScreen> {
       case LogicalKeyboardKey.arrowDown:
         _select(_sel + 1);
       case LogicalKeyboardKey.arrowLeft:
-        _shift(_sel, -step, to: _sel);
+        _seek(_pos - Duration(seconds: big ? 1 : 5));
       case LogicalKeyboardKey.arrowRight:
-        _shift(_sel, step, to: _sel);
+        _seek(_pos + Duration(seconds: big ? 1 : 5));
+      case LogicalKeyboardKey.bracketLeft:
+        _shift(_sel, -const Duration(milliseconds: 100), to: _sel);
+      case LogicalKeyboardKey.bracketRight:
+        _shift(_sel, const Duration(milliseconds: 100), to: _sel);
       case LogicalKeyboardKey.keyS when ctrl:
         _save();
       default:
@@ -245,10 +255,18 @@ class _EditorScreenState extends State<EditorScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(color: K.surface1, borderRadius: BorderRadius.circular(8)),
         child: Row(children: [
+          IconButton(
+              tooltip: 'Back 5s (←)',
+              onPressed: () => _seek(_pos - const Duration(seconds: 5)),
+              icon: const Icon(Icons.replay_5)),
           FilledButton(
             onPressed: _toggle,
             child: Icon(_playing ? Icons.pause : Icons.play_arrow),
           ),
+          IconButton(
+              tooltip: 'Forward 5s (→)',
+              onPressed: () => _seek(_pos + const Duration(seconds: 5)),
+              icon: const Icon(Icons.forward_5)),
           const SizedBox(width: 16),
           Text('${_fmt(_pos)} / ${_fmt(_length)}', style: const TextStyle(fontFeatures: K.tabular)),
           Expanded(
@@ -295,7 +313,7 @@ class _EditorScreenState extends State<EditorScreen> {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Text(
           'Space play/pause  •  Enter = selected line starts now  •  Backspace undo tap  •  Shift+Enter tap + later lines follow'
-          '  •  B instrumental starts now (Del removes a break)  •  ↑ ↓ select  •  ← → nudge 0.1s (Shift 1s)  •  Click a line to hear it  •  Ctrl+S save',
+          '  •  B instrumental now  •  ← → rewind/forward 5s (Shift 1s)  •  ↑ ↓ select  •  [ ] nudge line 0.1s  •  Click a line to hear it  •  Ctrl+S save',
           style: TextStyle(color: K.muted, fontSize: 12)),
       const SizedBox(height: 8),
       Expanded(
