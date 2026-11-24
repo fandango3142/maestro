@@ -53,11 +53,12 @@ def detect_key_bpm(path: Path) -> tuple[str, float]:
     return max(scores)[1], round(float(np.atleast_1d(tempo)[0]), 1)
 
 
+def done(src: Path) -> bool:
+    return (LIBRARY / slug(src.stem) / "song.json").exists()
+
+
 def process(src: Path) -> None:
     dest = LIBRARY / slug(src.stem)
-    if (dest / "song.json").exists():
-        print(f"skip  {src.name} (already in library)")
-        return
     print(f"{time.strftime('%H:%M:%S')} split {src.name} ...")
     started = time.monotonic()
     dest.mkdir(parents=True, exist_ok=True)
@@ -78,6 +79,19 @@ def process(src: Path) -> None:
 
 
 if __name__ == "__main__":
-    for f in sorted(INBOX.iterdir()):
-        if f.suffix.lower() in AUDIO_EXT:
+    # Re-scan after every song so files dropped in mid-run get picked up too.
+    failed: set[Path] = set()
+    while todo := [
+        f for f in sorted(INBOX.iterdir())
+        if f.suffix.lower() in AUDIO_EXT and f not in failed and not done(f)
+    ]:
+        f = todo[0]
+        if time.time() - f.stat().st_mtime < 10:  # still being copied in
+            time.sleep(10)
+            continue
+        try:
             process(f)
+        except Exception as e:  # one bad file must not stop the batch
+            print(f"{time.strftime('%H:%M:%S')} FAILED {f.name}: {e}")
+            failed.add(f)
+    print(f"{time.strftime('%H:%M:%S')} inbox empty, {len(failed)} failed")

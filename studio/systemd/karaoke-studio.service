@@ -1,0 +1,6 @@
+[Unit]
+Description=Karaoke Studio: process inbox
+
+[Service]
+Type=oneshot
+ExecStart=%h/karaoke/studio/run.sh

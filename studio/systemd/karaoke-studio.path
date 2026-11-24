@@ -1,0 +1,8 @@
+[Unit]
+Description=Process songs when files land in ~/karaoke/inbox
+
+[Path]
+PathChanged=%h/karaoke/inbox
+
+[Install]
+WantedBy=default.target
