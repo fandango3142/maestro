@@ -33,7 +33,9 @@ def separate(src: Path, dest: Path) -> None:
     from audio_separator.separator import Separator  # slow import; only when needed
 
     with tempfile.TemporaryDirectory() as tmp:
-        # overlap=2 instead of the model's 4: ~2x faster. fp16 autocast was SLOWER on the GTX 1650.
+        # GTX 1650, 4-min song: overlap 4 = ~16 min, overlap 2 = 452s (output diff SNR 39 dB, inaudible).
+        # fp16 autocast was ~2x SLOWER. 30s clip: batch 1/2 and cudnn.benchmark all 48.9-49.6s,
+        # 1.6 GB VRAM -> GPU is compute-bound, no free speed left in settings.
         sep = Separator(
             output_dir=tmp, output_format="FLAC", model_file_dir=str(MODELS),
             mdxc_params={"segment_size": 256, "override_model_segment_size": False,
