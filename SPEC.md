@@ -15,7 +15,7 @@ Owner: Ryan (performer, the only user). Readers: Ryan, Claude, and any agent hel
 2. Process the 3 remaining songs in `inbox-backing/` (Los-Lobos, Queen-Crazy, Shaggy-Angel). After a reboot the path unit only fires on *new* changes, so run `~/karaoke/studio/run.sh` once. Fix: also enable `karaoke-studio.service` at boot.
 3. Copy the finished songs to `Documents/Karaoke/library` on the dev laptop; check Queen's key against D major.
 4. The box desktop is XFCE: power settings live in `xfconf` (xfce4-power-manager), not gsettings.
-5. App: lyrics timing editor done (Enter = next line now, B = instrumental break, Backspace undo, re-sync from here, Shift+Enter offset-follow). Ryan field-testing on George Benson. Next: setlists, tempo/key in editor.
+5. App: lyrics timing editor done. Agreed build order: (a) key/tempo in app (native Signalsmith + FLAC decode, render cache), (b) audio cuts editor, (c) lyrics text editing, then setlists.
 - App: mockups for 5 screens in `design/` (code.html + screen.png each); design tokens in `design/stage_ready_karaoke_manager/DESIGN.md`. Flutter app (`app/`) package 1 done: Library + one-screen Stage mode, reading `Documents/Karaoke/library`. Next: setlists, song editor + tap-to-sync, two-screen stage.
 
 **Decisions**
