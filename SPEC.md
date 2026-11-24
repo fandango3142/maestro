@@ -7,6 +7,7 @@ Owner: Ryan (performer, the only user). Readers: Ryan, Claude, and any agent hel
 
 **Status (update as work lands)**
 - Studio: vocal separation + key/BPM detection working on the GPU box. Drop folder (`~/Desktop/Karaoke Inbox` on the box) auto-processes songs.
+- Key/tempo engine tested 2026-11-25: Signalsmith Stretch (python-stretch) renders a 4-min song ±2 semitones in 3.7 s on the dev laptop CPU, with identical length and 0 ms measured lag (lyric sync carries over). Shifting can push peaks over full scale, so normalise to ≤0.98. Next: build it into the app (native Signalsmith + FLAC decode), then cuts.
 - Studio next: verify key detection against known keys (Queen "Crazy Little Thing" = D major), lyrics (local LRCLIB copy, auto-sync, tap-to-sync), key/tempo render.
 
 **Pick up next session**
@@ -77,11 +78,12 @@ A dark, offline, stage-ready karaoke app for one performer. It manages a persona
 - **Offline only.** No accounts, no cloud, no network calls. It must work in a venue with no Wi-Fi.
 - **Self-contained.** One app with one data folder (default `Documents/Karaoke/`, changeable in Settings). Everything the app knows lives in that folder.
 - **Scale:** 50 songs at launch, designed for 500.
+- **Use cases:** karaoke of the original song, and **covers**: any song in Ryan's own key/tempo, with the original vocals removed, intros/dialogue cut, and his own lyric edits.
 - **Languages:** English, Hindi, Konkani, Spanish. Lyrics show in **Romanised** script by default, with **Devanagari** available per song. No script can ever fail to render: bundle Noto Sans + Noto Sans Devanagari.
 
 ## 3. App: out of scope for v1
 
-Do not design these: streaming or importing from online services, singing scores, recording, mic effects/reverb, multi-user, cloud sync, and audio processing (vocal removal happens in a separate "Studio" pipeline on another machine; the app only reads its output).
+Do not design these: streaming or importing from online services, singing scores, recording, mic effects/reverb, multi-user, cloud sync, and AI audio processing (vocal removal happens in the separate "Studio" pipeline on the GPU box; the app only reads its output). Light DSP **is** in the app: key/tempo shift, cuts and the mix render (see §5.2).
 
 ## 4. Data contract (the app reads and writes these; don't invent others)
 
@@ -113,11 +115,14 @@ Karaoke/
   "backing_vocals": 0.0,     // 0..1 mix level
   "guide_vocal": 0.0,        // 0..1 lead vocal mix level
   "lyrics_script": "roman",  // roman | deva
+  "cuts": [[0.0, 6.5], [121.0, 128.4]],  // seconds of ORIGINAL audio to skip (dialogue, intro, outro); default []
   "notes": ""
 }
 ```
 
 `setlist.json`: `{ "schema_version": 1, "name": "", "date": "", "venue": "", "songs": [ { "id": "godacho-panv", "key_shift": null, "notes": "" } ] }`. A per-gig `key_shift` overrides the song default when set.
+
+**Timelines:** lyric timestamps are always stored against the **original** audio. Cuts and tempo are applied at render time, and stage mode maps each lyric time through the same cut list and tempo, so editing cuts never breaks a finished sync.
 
 **Song status** is derived, not stored: `processing` (no song.json yet) → `needs_lyrics` → `needs_sync` (lyrics but no timings) → `ready`.
 
@@ -131,9 +136,10 @@ Karaoke/
 
 ### 5.2 Song editor
 - **Settings:** key shift stepper (shows the resulting key), tempo slider, backing-vocals and guide-vocal level sliders, preview transport. Changing key or tempo shows a "rendering…" state until the cached file is ready (rendering takes seconds to minutes; the UI must not block).
-- **Lyrics editor:** paste or type plain lyrics, with Romanised and Devanagari tabs and an auto-transliterate button between them.
+- **Audio editor (cuts):** a waveform of the backing track (vocal stem overlaid faintly, so dialogue and singing are easy to spot). Drag to select a region and mark it **Cut** (dialogue at the start, end or in the middle; long intros; fade-outs). Trim-start and trim-end handles. A preview plays across each cut with a short crossfade (~50 ms) so it doesn't click. Non-destructive: cuts are stored in `song.json`, the source files are never changed, and any cut can be removed later.
+- **Lyrics editor:** paste or type plain lyrics, with Romanised and Devanagari tabs and an auto-transliterate button between them. **Edit an existing file without losing its timing:** fix a line's text, insert a missing line (untimed until tapped), delete, split one line into two, or merge two lines. Downloaded lyric files often miss lines or ad-libs, and covers need Ryan's own words.
 - **Sync tools:**
-  - **Tap-to-sync:** the song plays and Ryan taps Space (or a big on-screen button on iPad) at the start of each line. The current/next line is shown large.
+  - **Tap-to-sync (built):** Space play/pause; Enter = the selected line starts now, then move to the next line; B = an instrumental break starts now (shown as "♪ Instrumental" on stage); Backspace undoes the last tap (rewinds 3s); "Re-sync from here" clears timing from the selected line on and replays from 1s before the previous line; ←/→ seek 5s (Shift 1s); [ ] nudge a line 0.1s; Shift+Enter taps and moves later lines too (for files that are just offset). Downloaded LRC files proved unreliable (wrong intro length and wrong internal gaps), so manual sync is the primary path.
   - **Fine-tune:** a timeline with draggable line markers, a nudge of ±0.1s, and loop on a single line.
   - **Auto-sync:** a button that sends the song to Studio. It shows a status only; the work happens elsewhere.
 
