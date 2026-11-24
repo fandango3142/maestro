@@ -39,3 +39,12 @@ int currentLine(List<LyricLine> lines, Duration pos) {
   }
   return i;
 }
+
+String _stamp(Duration d) {
+  final cs = (d.inMilliseconds / 10).round();
+  return '[${(cs ~/ 6000).toString().padLeft(2, '0')}:'
+      '${(cs ~/ 100 % 60).toString().padLeft(2, '0')}.${(cs % 100).toString().padLeft(2, '0')}]';
+}
+
+String formatLrc(List<LyricLine> lines) =>
+    '${lines.map((l) => l.time == null ? l.text : '${_stamp(l.time!)}${l.text}').join('\n')}\n';

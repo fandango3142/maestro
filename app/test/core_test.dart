@@ -17,6 +17,12 @@ void main() {
     expect(lines.every((l) => l.time == null), isTrue);
   });
 
+  test('formatLrc round-trips timed and untimed lines', () {
+    const src = '[00:01.00]a\n[01:02.35]b\n';
+    expect(formatLrc(parseLrc(src)), src);
+    expect(formatLrc(parseLrc('x\ny')), 'x\ny\n');
+  });
+
   test('currentLine', () {
     final lines = parseLrc('[00:05]a\n[00:10]b');
     expect(currentLine(lines, const Duration(seconds: 1)), -1);

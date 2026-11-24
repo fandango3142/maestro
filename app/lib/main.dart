@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'editor.dart';
 import 'library.dart';
 import 'stage.dart';
 import 'theme.dart';
@@ -93,6 +94,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
     await Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => StageScreen(queue: queue, start: from == null ? 0 : queue.indexOf(from).clamp(0, queue.length)),
     ));
+    _reload();
+  }
+
+  Future<void> _edit(Song s) async {
+    _previewStop?.cancel();
+    await _preview.stop();
+    setState(() => _previewing = null);
+    if (!mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => EditorScreen(song: s)));
     _reload();
   }
 
@@ -266,7 +276,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 : Text('$c', style: i == 0 && !header ? style.copyWith(fontWeight: FontWeight.w600) : style,
                     overflow: TextOverflow.ellipsis),
           ),
-        SizedBox(width: 150, child: Row(mainAxisAlignment: MainAxisAlignment.end, children: actions)),
+        SizedBox(width: 200, child: Row(mainAxisAlignment: MainAxisAlignment.end, children: actions)),
       ]),
     );
   }
@@ -285,6 +295,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
         s.bpm?.round() ?? '—',
         StatusChip(s.status),
       ], actions: [
+        if (playable)
+          IconButton(tooltip: 'Edit lyrics timing', onPressed: () => _edit(s), icon: const Icon(Icons.edit_note)),
         if (playable) ...[
           TextButton.icon(
             onPressed: () => _togglePreview(s),

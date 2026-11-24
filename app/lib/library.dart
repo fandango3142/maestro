@@ -21,8 +21,9 @@ class Song {
   final Directory dir;
   final Map<String, dynamic> json;
   final List<LyricLine> lyrics;
+  final File lyricsFile; // where lyrics were read from, or where new ones get written
 
-  Song(this.dir, this.json, this.lyrics);
+  Song(this.dir, this.json, this.lyrics, this.lyricsFile);
 
   String get id => json['id'] as String? ?? dir.uri.pathSegments.lastWhere((s) => s.isNotEmpty);
   String get title => json['title'] as String? ?? id;
@@ -50,10 +51,9 @@ class Song {
         ? jsonDecode(meta.readAsStringSync()) as Map<String, dynamic>
         : <String, dynamic>{};
     final script = json['lyrics_script'] as String? ?? 'roman';
-    final lrc = [File('${dir.path}/lyrics.$script.lrc'), File('${dir.path}/lyrics.roman.lrc')]
-        .where((f) => f.existsSync())
-        .firstOrNull;
-    return Song(dir, json, lrc == null ? const [] : parseLrc(lrc.readAsStringSync()));
+    final wanted = File('${dir.path}/lyrics.$script.lrc');
+    final lrc = [wanted, File('${dir.path}/lyrics.roman.lrc')].where((f) => f.existsSync()).firstOrNull;
+    return Song(dir, json, lrc == null ? const [] : parseLrc(lrc.readAsStringSync()), lrc ?? wanted);
   }
 }
 
