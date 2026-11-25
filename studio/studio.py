@@ -4,6 +4,7 @@ without real backing vocals the karaoke model mislabels parts of the lead as bac
 
 Usage:  uv run studio.py
 """
+import gc
 import json
 import re
 import shutil
@@ -13,6 +14,7 @@ from pathlib import Path
 
 import librosa
 import numpy as np
+import torch
 
 ROOT = Path(__file__).resolve().parent.parent
 INBOX, INBOX_BACKING = ROOT / "inbox", ROOT / "inbox-backing"
@@ -49,6 +51,10 @@ def separate(src: Path, dest: Path, model: str, names: dict[str, str]) -> None:
         for out in sep.separate(str(src)):
             name = next(v for k, v in names.items() if k in out.lower())
             shutil.move(Path(tmp) / Path(out).name, dest / name)
+        # Free VRAM before the next model loads: two RoFormers don't fit in 4 GB together.
+        del sep
+        gc.collect()
+        torch.cuda.empty_cache()
 
 
 def detect_key_bpm(path: Path) -> tuple[str, float]:
