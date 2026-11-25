@@ -3,6 +3,11 @@
 Owner: Ryan. Written 2026-11-26. Executed by subagents, one work package (WP) at a time, coordinated by the main Claude session.
 Source of truth for *what the app is*: `SPEC.md`. This doc is *how we build the next slice*. If they disagree, SPEC wins. Flag the conflict; don't silently pick one.
 
+## Status (2026-11-26, paused at Ryan's request)
+- Done: **WP-A** setlists, **WP-C1** render engine (approved by ear), **WP-B2** lyrics editor (plus revision: guide mix, inline edit/add while paused), and UI overflow fixes at 1280x720.
+- Next when resumed: **WP-B** song details (names, bpm_override, Whisper drafts with deva/roman save target) → **WP-C2** → **WP-D0** spike → **WP-D1** → **WP-E**.
+- Open owner checks: hand-test the lyrics editor on Godacho Panv; run a real setlist through stage mode.
+
 ## Goal
 Turn Maestro from "a library that plays songs" into a stage manager. That means timed setlists with breaks, editable song names, durations, key and tempo rendered in the app, and a two-screen presenter mode.
 
