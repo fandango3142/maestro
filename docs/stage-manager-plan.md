@@ -13,7 +13,7 @@ Turn Maestro from "a library that plays songs" into a stage manager. That means 
 | The app owns `title`, `artist`, `language` in `song.json` | Studio sets the first guess (filename) and never overwrites: it skips any folder that already has `song.json` |
 | Key/tempo render runs **inside the app** | Native C++ (Signalsmith Stretch, MIT) via `dart:ffi`. The same code compiles for iPad later. No Python, no ffmpeg, no GPU box |
 | Render output is WAV: `render/k{shift}_t{tempo×100}_v{engine}.wav` | No encoder needed. Readable name = cache key. Engine version in the name invalidates old renders |
-| Build order A → B → C → D | A setlists, B names, C key/tempo, D two-screen presenter |
+| Build order A → B → B2 → C → D → E | A setlists, B names, B2 lyrics text, C key/tempo, D two-screen presenter, E audio trimmer |
 
 ## Rules for every subagent (read first)
 **Do**
@@ -39,7 +39,8 @@ Turn Maestro from "a library that plays songs" into a stage manager. That means 
 
 ### Field ownership in `song.json`
 - Studio owns `schema_version`, `id`, `source_file`, `original_key`, `bpm`, `separation_model`, `backing_model`. **The app never writes these.**
-- The app owns `title`, `artist`, `language`, `tags`, `key_shift`, `tempo`, `backing_vocals`, `guide_vocal`, `lyrics_script`, `cuts`, `notes`, `bpm_override`.
+- The app owns `title`, `artist`, `language`, `tags`, `key_shift`, `tempo`, `backing_vocals`, `guide_vocal`, `lyrics_script`, `cuts`, `notes`, `bpm_override`, `dismissed_suggestions`.
+- Studio additionally owns `cut_suggestions` (WP-E).
 - `bpm_override` (optional number): Ryan's correction when Studio's detected `bpm` is half or double. Every BPM shown in the app = `bpm_override ?? bpm`. Studio may re-patch `bpm` at any time, and the override survives that.
 - One writer: `Future<void> saveSongFields(Song s, Map<String, Object?> changes)` in `library.dart` (built in WP-B). It throws if asked to write a Studio-owned key.
 
@@ -142,6 +143,28 @@ Turn Maestro from "a library that plays songs" into a stage manager. That means 
 
 ---
 
+## WP-B2: Lyrics text editing (keep timings)
+**Goal:** Ryan fixes words in an existing lyrics file without losing any sync work.
+
+**Build** (inside the existing `editor.dart` line list, not a new screen)
+1. Edit a line's text in place: double-click or `F2` on the selected line, Enter saves, Esc cancels. **The timing is kept.**
+2. Insert a line below (`Ctrl+Enter`). It's untimed until tapped.
+3. Delete a line (`Ctrl+Delete`). Its neighbours keep their times.
+4. Split a line at the cursor (`Ctrl+Shift+Enter` while editing). The first half keeps the time, and the second half is untimed.
+5. Merge with the next line (`Ctrl+M`). The merged line keeps the first line's time.
+6. **"Replace all text…"** dialog: paste a full new version. Lines are matched in order: the first N lines keep their times, any extra are untimed, and if fewer lines come in, the leftovers are removed. A warning shows the before/after line counts.
+7. All edits go through the existing dirty flag + `Ctrl+S` save. Unsaved edits prompt on leaving (manager screen, so a dialog is fine).
+8. Tests: pure list operations (edit, insert, delete, split, merge, replace-all) keep the right times; untimed lines round-trip through `formatLrc`.
+
+**Exit criteria**
+- [ ] Each operation keeps every other line's timing byte-identical (unit tests).
+- [ ] Edited lyrics save, reload, and play in stage mode with correct sync.
+- [ ] analyze / test / build green.
+
+**Out of scope:** Romanised/Devanagari tabs and auto-transliterate, word-level timing, spell-check, undo history beyond the existing Backspace tap-undo.
+
+---
+
 ## WP-C: Key and tempo rendered in the app
 Split into two parts. **C1 can start in parallel with WP-A** (new files only, run in its own git worktree).
 
@@ -235,13 +258,43 @@ Answer with evidence, by trying it in a throwaway branch/worktree:
 
 ---
 
+---
+
+## WP-E: Audio trimmer with auto-flagged sections
+**Goal:** cut dialogue, long intros and silent tails without hunting for them. The app shows **flagged** sections, and Ryan accepts or dismisses each. Nothing is ever cut automatically.
+
+**Split of work**
+- **Studio side (other session, `studio/`, not this plan's subagents):** writes `cut_suggestions` `[{start, end, kind: "speech"|"silence", confidence}]` into `song.json`. The contract is in SPEC §4/§5.2. Coordinator agrees the details with the Studio session before E starts.
+- **App side (this WP):**
+  1. A waveform view in the song editor: backing track solid, vocal stem faint overlay. Waveform peaks are computed once and cached in `render/peaks_v1.bin`. Decode via the C1 native lib (add one `maestro_peaks` function) so there's no second decoder.
+  2. Flagged regions are drawn in amber with a label (Speech / Silence + confidence). Click → play from 1 s before the region. **Accept** → appended to `cuts` (with drag handles). **Dismiss** → its `[start,end]` goes into `dismissed_suggestions` and it stops showing.
+  3. Manual cuts: drag on the waveform to select, `X` = cut. Trim-start/trim-end handles. Remove a cut with Delete.
+  4. **App-side fallback flags** when Studio hasn't written suggestions: vocal-stem RMS above a threshold for ≥ 2 s where **no synced lyric line** covers it → "Possible speech". Leading/trailing full-mix RMS below −45 dBFS for ≥ 1.5 s → "Silence". Pure function, unit tested on synthetic signals.
+  5. Render (C1) applies `cuts` with ~50 ms crossfades. Render file name gains a cuts hash (`…_c{hash8}_v2.wav`).
+  6. `toOriginal()` maps through the cuts. Durations in Library/setlists use `playedDuration` (already includes cuts).
+  7. Library filter **Needs trim review** = has suggestions that are neither accepted nor dismissed.
+- Tests: the cut mapping both directions (`toOriginal` and lyric time → playback time) across 0, 1 and 3 cuts, the fallback detector on synthetic audio, crossfade = no sample jump > a threshold at the joins.
+
+**Exit criteria**
+- [ ] Accepting a flag shortens the played duration by exactly the cut length / tempo (unit test).
+- [ ] Lyrics stay in sync after the cuts (mapping unit test + Ryan's ear test).
+- [ ] Dismissed flags stay dismissed after Studio rewrites `cut_suggestions`.
+- [ ] No click audible at cut points (Ryan's ear test). The sample-jump test passes.
+- [ ] analyze / test / build green.
+
+**Out of scope:** automatic cutting without review, music-structure detection (verse/chorus), fade-in/fade-out shaping beyond the fixed crossfade, editing the source audio.
+
+**Owner field test (Ryan):** a song with spoken dialogue in the middle. Accept the flag, play across the cut in stage mode, and check the lyrics before and after it.
+
 ## Execution order and parallelism
 | Phase | Runs | Where | Gate before next phase |
 |---|---|---|---|
 | 1 | **WP-A** and **WP-C1** in parallel | A in the main tree (`app/lib`, `app/test`); C1 in its own git worktree (`app/native`, `app/lib/render.dart`, `app/windows/CMakeLists.txt`, its own test file) | Coordinator runs `/code-review` + `/ponytail-review` on each and fixes findings, then commits locally |
 | 2 | **WP-B** | main tree | same |
 | 3 | **WP-C2** (merge C1 first) | main tree | same, plus Ryan's ear test |
+| 2b | **WP-B2** | main tree | same |
 | 4 | **WP-D0** spike → Ryan approves → **WP-D1** | spike in a worktree, build in the main tree | same, plus Ryan's HDMI test |
+| 5 | **WP-E** (after the Studio `cut_suggestions` contract is agreed; the app-side fallback works without it) | main tree | same, plus Ryan's ear test |
 
 File ownership during Phase 1, to avoid conflicts: WP-A may change `main.dart`, `library.dart`, `stage.dart`, `theme.dart`, new `setlist.dart`/`setlists_screen.dart`, and `app/test/`. C1 must **not** touch those files except adding its own new test file. It adds `render.dart` as a standalone file that nothing imports yet.
 
