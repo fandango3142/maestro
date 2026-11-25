@@ -39,7 +39,8 @@ Turn Maestro from "a library that plays songs" into a stage manager. That means 
 
 ### Field ownership in `song.json`
 - Studio owns `schema_version`, `id`, `source_file`, `original_key`, `bpm`, `separation_model`, `backing_model`. **The app never writes these.**
-- The app owns `title`, `artist`, `language`, `tags`, `key_shift`, `tempo`, `backing_vocals`, `guide_vocal`, `lyrics_script`, `cuts`, `notes`.
+- The app owns `title`, `artist`, `language`, `tags`, `key_shift`, `tempo`, `backing_vocals`, `guide_vocal`, `lyrics_script`, `cuts`, `notes`, `bpm_override`.
+- `bpm_override` (optional number): Ryan's correction when Studio's detected `bpm` is half or double. Every BPM shown in the app = `bpm_override ?? bpm`. Studio may re-patch `bpm` at any time, and the override survives that.
 - One writer: `Future<void> saveSongFields(Song s, Map<String, Object?> changes)` in `library.dart` (built in WP-B). It throws if asked to write a Studio-owned key.
 
 ### Setlist file `setlists/<setlist-id>.json` (replaces the SPEC §4 shape; no setlists exist yet, so stay on schema_version 1)
@@ -119,7 +120,8 @@ Turn Maestro from "a library that plays songs" into a stage manager. That means 
 1. `saveSongFields` (see Shared contracts), atomic, with a guard against Studio-owned keys.
 2. A **Song details** dialog, opened from a pencil icon on each Library row and from the `E` key on the focused row:
    - Fields: Title, Artist, Language (dropdown: English, Hindi, Konkani, Spanish, Other).
-   - Read-only line: `Source file: godacho-panv.mp3 · Gm · 129 BPM · 4:05`, so he can tell songs apart.
+   - Read-only line: `Source file: godacho-panv.mp3 · Gm · 4:05`, so he can tell songs apart.
+   - **BPM** field (editable number) with **½×** and **2×** buttons, because Studio's detector can come out half or double. Saves `bpm_override`. A "reset" link clears it back to the detected value, which is shown greyed beside it.
    - A **Play 15 s** button inside the dialog (reuse the preview logic) to identify a song by ear.
    - Enter saves, Esc cancels. The Library row updates without a full rescan flicker.
    - **Save & next unnamed** button: saves and opens the next song that still needs a name. This is how a 500-song library gets cleaned up in one sitting.
