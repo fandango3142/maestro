@@ -43,7 +43,7 @@ Future<File> _open(WidgetTester tester, String lrc) async {
   // Real font, so widths match the app (the default test font is much wider).
   final bytes = File('assets/fonts/NotoSans-Regular.ttf').readAsBytesSync();
   await (FontLoader('NotoSans')..addFont(Future.value(ByteData.sublistView(bytes)))).load();
-  tester.view.physicalSize = const Size(1366, 768);
+  tester.view.physicalSize = const Size(1280, 720);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
 

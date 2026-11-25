@@ -556,6 +556,7 @@ class _SetlistsScreenState extends State<SetlistsScreen> {
             child: Text('$no', style: const TextStyle(color: K.muted)),
           ),
           Expanded(
+            flex: 3,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -607,8 +608,8 @@ class _SetlistsScreenState extends State<SetlistsScreen> {
           _clock(clock),
           if (!missing) _keyDropdown(item, song),
           const SizedBox(width: 12),
-          SizedBox(
-            width: 200,
+          Expanded(
+            flex: 2, // flexes with the window so the song name keeps room
             child: TextFormField(
               initialValue: item.notes,
               decoration: const InputDecoration(hintText: 'Add gig note…'),

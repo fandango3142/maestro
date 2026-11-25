@@ -261,7 +261,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  static const _cols = [4, 3, 2, 2, 1, 2, 2]; // title, artist, language, key, bpm, duration, status (flex)
+  static const _cols = [4, 3, 3, 2, 1, 2, 3]; // title, artist, language, key, bpm, duration, status (flex)
 
   Widget _table(List<Song> songs) => Container(
         decoration: BoxDecoration(color: K.surface1, borderRadius: BorderRadius.circular(8)),
@@ -292,10 +292,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
         for (final (i, c) in cells.indexed)
           Expanded(
             flex: _cols[i],
-            child: c is Widget
-                ? Align(alignment: Alignment.centerLeft, child: c)
-                : Text('$c', style: i == 0 && !header ? style.copyWith(fontWeight: FontWeight.w600) : style,
-                    overflow: TextOverflow.ellipsis),
+            child: Padding(
+              padding: const EdgeInsets.only(right: 12), // gap so a long title can't touch the next column
+              child: c is Widget
+                  // scaleDown: a chip shrinks rather than overflowing a narrow window
+                  ? Align(alignment: Alignment.centerLeft, child: FittedBox(fit: BoxFit.scaleDown, child: c))
+                  : Text('$c', style: i == 0 && !header ? style.copyWith(fontWeight: FontWeight.w600) : style,
+                      overflow: TextOverflow.ellipsis),
+            ),
           ),
         SizedBox(width: 200, child: Row(mainAxisAlignment: MainAxisAlignment.end, children: actions)),
       ]),

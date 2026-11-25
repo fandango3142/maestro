@@ -9,11 +9,11 @@ import 'package:karaoke_manager/setlists_screen.dart';
 import 'package:karaoke_manager/theme.dart';
 
 void main() {
-  testWidgets('Setlists screen fits a 1366x768 laptop and autosaves edits', (tester) async {
+  testWidgets('Setlists screen fits a 1280x720 window and autosaves edits', (tester) async {
     // Real font, so widths match the app (the default test font is much wider).
     final bytes = File('assets/fonts/NotoSans-Regular.ttf').readAsBytesSync();
     await (FontLoader('NotoSans')..addFont(Future.value(ByteData.sublistView(bytes)))).load();
-    tester.view.physicalSize = const Size(1366 - 240, 768); // the sidebar takes 240
+    tester.view.physicalSize = const Size(1280 - 240, 720); // Ryan's window (1600x900 at 125%); the sidebar takes 240
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
