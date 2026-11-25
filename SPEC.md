@@ -36,6 +36,8 @@ Owner: Ryan (performer, the only user). Readers: Ryan, Claude, and any agent hel
 | No "New" badge | Ryan skipped it (2026-11-26) |
 | Auto lyric sync for English/Spanish/Hindi (local Whisper word timing, study nomadkaraoke/karaoke-gen first); Konkani = manual tap-sync | Whisper has no Konkani; Ryan is fine syncing those by hand. Keep building Maestro rather than adopting an existing repo (none does stage mode/setlists/offline iPad, several need paid or external APIs) |
 
+**Ownership (parallel Claude sessions, 2026-11-26)**: the UI session owns `app/` and `design/`; the Studio session owns `studio/`, the GPU box, and the Studio-owned `song.json` fields (`original_key`, `bpm`, `separation_model`, `backing_model`). Each edits only its own SPEC sections. Commit explicit paths only, never `git add -A`.
+
 **Machines**
 - **Dev laptop** (Windows, AMD GPU, 24GB RAM): build here; app, lyrics database and lyric sync run here.
 - **GPU box** (`ryan@192.168.29.71`, Linux Mint, GTX 1650 4GB, 8GB RAM): Studio batch processing in small daily batches.
