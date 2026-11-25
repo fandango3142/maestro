@@ -50,6 +50,7 @@ Owner: Ryan (performer, the only user). Readers: Ryan, Claude, and any agent hel
 3. Split vocals → `lead_vocals.flac`, `backing_vocals.flac`. **Opt-in** via `inbox-backing/` (box desktop: "Karaoke Inbox (keep backing)"), model `mel_band_roformer_karaoke_becruily` (done). Opt-in because on songs with no backing vocals the model mislabels parts of the lead as backing.
 4. Lyrics: fetch from the local LRCLIB copy → align with ctc-forced-aligner on the vocal track (planned)
 5. Render key/tempo/mix → `render/<hash>.flac` (planned)
+6. Cut suggestions → `cut_suggestions` in song.json (planned, not prioritised): a speech-vs-singing classifier (YAMNet/PANNs) on `vocals.flac`, plus a silence threshold on the mix for lead-in and tail. Each entry is `{id, start, end, kind, confidence}`; `id` is deterministic (kind + times rounded to 0.5s) so the app-owned `dismissed_suggestions` survive re-runs.
 
 Run on the box: drop files into the inbox (auto), or `~/karaoke/studio/run.sh`. Log: `tail -f ~/karaoke/studio.log`.
 
