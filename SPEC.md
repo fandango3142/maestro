@@ -16,6 +16,7 @@ Owner: Ryan (performer, the only user). Readers: Ryan, Claude, and any agent hel
 3. Copy the finished songs to `Documents/Karaoke/library` on the dev laptop; check Queen's key against D major.
 4. The box desktop is XFCE: power settings live in `xfconf` (xfce4-power-manager), not gsettings.
 5. App: lyrics timing editor done. Agreed build order: (a) key/tempo in app (native Signalsmith + FLAC decode, render cache), (b) audio cuts editor, (c) lyrics text editing, then setlists.
+- **Stage manager build in progress (2026-11-26):** plan and subagent rules in `docs/stage-manager-plan.md`. Order: A setlists (breaks, durations, clock times) → B song details (edit names) → C key/tempo rendered in-app → D two-screen presenter.
 - App: mockups for 5 screens in `design/` (code.html + screen.png each); design tokens in `design/stage_ready_karaoke_manager/DESIGN.md`. Flutter app (`app/`) package 1 done: Library + one-screen Stage mode, reading `Documents/Karaoke/library`. Next: setlists, song editor + tap-to-sync, two-screen stage.
 
 **Guiding principle (Ryan, 2026-11-25): start with the wheel, then improve it.** Use the fastest existing tool or service to get a working, stable system; then learn from it and replace parts with our own once we have data to compare against. Guard rails: every external result is saved locally in our formats with its source recorded (e.g. `"lyrics_source": "lrclib"`), and every service sits behind a swappable adapter, so losing a service never breaks the library. Services' outputs double as benchmarks for our own versions; only lyrics checked by ear count as ground truth.
@@ -30,6 +31,9 @@ Owner: Ryan (performer, the only user). Readers: Ryan, Claude, and any agent hel
 | Plain files (song.json, LRC), no database | Enough for 500 songs; copies straight to the iPad |
 | Git remote = the GPU box directly; audio never in git | Size, copyright |
 | Bootstrap sources: LRCLIB first (open, full dump); Musixmatch (paid tier needed to store), AudioShake (paid, separation benchmark) and Shazam (unofficial, disposable) only behind adapters | Build the library fast, then mature away from them |
+| App owns `title`, `artist`, `language` (editable in Song details); Studio only sets the first guess and never overwrites an existing song.json | Ryan needs to clean up names across a big library |
+| Key/tempo rendered inside the app (native Signalsmith via FFI), cached as `render/k{shift}_t{tempo×100}_v{n}.wav` | Offline, fast, same code works on iPad; WAV needs no encoder |
+| No "New" badge | Ryan skipped it (2026-11-26) |
 | Auto lyric sync for English/Spanish/Hindi (local Whisper word timing, study nomadkaraoke/karaoke-gen first); Konkani = manual tap-sync | Whisper has no Konkani; Ryan is fine syncing those by hand. Keep building Maestro rather than adopting an existing repo (none does stage mode/setlists/offline iPad, several need paid or external APIs) |
 
 **Machines**
@@ -101,7 +105,7 @@ Karaoke/
     backing_vocals.flac    # optional, from Studio
     lyrics.roman.lrc       # optional, Romanised synced lyrics
     lyrics.deva.lrc        # optional, Devanagari synced lyrics
-    render/<hash>.flac     # cached audio rendered at Ryan's key/tempo/mix
+    render/k{shift}_t{tempo×100}_v{n}.wav  # cached audio rendered at Ryan's key/tempo
   setlists/<setlist-id>.json
 ```
 
@@ -124,7 +128,7 @@ Karaoke/
 }
 ```
 
-`setlist.json`: `{ "schema_version": 1, "name": "", "date": "", "venue": "", "songs": [ { "id": "godacho-panv", "key_shift": null, "notes": "" } ] }`. A per-gig `key_shift` overrides the song default when set.
+`setlist.json`: `{ "schema_version": 1, "name": "", "date": "", "venue": "", "start_time": "20:00", "changeover_s": 30, "items": [ { "id": "godacho-panv", "key_shift": null, "notes": "" }, { "break": true, "minutes": 15, "label": "Dinner" } ] }`. A per-gig `key_shift` overrides the song default when set. Breaks are timed items; changeover is added between consecutive songs only. Full rules: `docs/stage-manager-plan.md` (Shared contracts).
 
 **Timelines:** lyric timestamps are always stored against the **original** audio. Cuts and tempo are applied at render time, and stage mode maps each lyric time through the same cut list and tempo, so editing cuts never breaks a finished sync.
 
@@ -149,6 +153,7 @@ Karaoke/
 
 ### 5.3 Setlists
 - Create, rename, duplicate and delete setlists. Drag to reorder. The total running time is always visible.
+- Timed **breaks** as setlist items, a changeover gap between songs, and an optional start time so every song shows its clock start time and the set shows its end time.
 - Per-song gig override for key, plus notes (e.g. "talk to crowd before").
 - Validation: warn about any song not `ready`.
 
