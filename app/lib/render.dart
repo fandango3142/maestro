@@ -61,13 +61,45 @@ final _jobs = <String, _Job>{};
 /// Concurrent calls for the same output share one render. [onProgress] gets 0..1 about 6× a second.
 Future<File> renderFile(File input, File output, int semitones, double tempo,
     {void Function(double)? onProgress}) {
+  final lib = renderLibraryPath, inPath = input.absolute.path, outPath = output.absolute.path;
+  // Use the rounded tempo so the file content always matches its name.
+  final t = (tempo * 100).round() / 100;
+  return _shared(output, input.path, (p) => _spawn(lib, inPath, outPath, semitones.toDouble(), t, p), onProgress);
+}
+
+/// Bump when the guide mix output changes; the old file is then ignored.
+const guideMixName = 'guide_v1.wav';
+
+/// The editor's guide mix: instrumental + vocals summed (sounds like the record), cached at
+/// `render/guide_v1.wav`. Null when either stem is missing. Re-made if a stem is newer than the cache
+/// (Studio re-ran). Concurrent calls share one job.
+Future<File?> ensureGuideMix(Song s) async {
+  final a = File('${s.dir.path}/instrumental.flac'), b = File('${s.dir.path}/vocals.flac');
+  if (!a.existsSync() || !b.existsSync()) return null;
+  final out = File('${s.dir.path}/render/$guideMixName');
+  final key = out.absolute.path.toLowerCase();
+  if (!_jobs.containsKey(key) && out.existsSync()) {
+    final made = out.lastModifiedSync();
+    if (a.lastModifiedSync().isAfter(made) || b.lastModifiedSync().isAfter(made)) out.deleteSync();
+  }
+  return mixFile(a, b, out);
+}
+
+/// Sums [a] and [b] into [output] (see `maestro_mix`) unless [output] already exists.
+Future<File> mixFile(File a, File b, File output) {
+  final lib = renderLibraryPath, pa = a.absolute.path, pb = b.absolute.path, po = output.absolute.path;
+  return _shared(output, a.path, (p) => Isolate.run(() => _mixSync(lib, pa, pb, po, p)), null);
+}
+
+/// One native job per output file: an existing output is reused, concurrent callers share the job.
+Future<File> _shared(File output, String input, Future<int> Function(int progressAddress) native,
+    void Function(double)? onProgress) {
   final key = output.absolute.path.toLowerCase(); // Windows paths are case-insensitive
   var job = _jobs[key];
   if (job == null) {
     if (output.existsSync()) return Future.value(output); // complete: renders land via rename
     final j = job = _jobs[key] = _Job();
-    // Use the rounded tempo so the file content always matches its name.
-    j.future = _run(j, input, output, semitones, (tempo * 100).round() / 100).whenComplete(() {
+    j.future = _run(j, input, output, native).whenComplete(() {
       j.finished = true;
       calloc.free(j.progress);
       _jobs.remove(key);
@@ -81,11 +113,10 @@ Future<File> renderFile(File input, File output, int semitones, double tempo,
   return j.future.whenComplete(timer.cancel);
 }
 
-Future<File> _run(_Job job, File input, File output, int semitones, double tempo) async {
+Future<File> _run(_Job job, String input, File output, Future<int> Function(int) native) async {
   await output.parent.create(recursive: true);
-  final code = await _spawn(
-      renderLibraryPath, input.absolute.path, output.absolute.path, semitones.toDouble(), tempo, job.progress.address);
-  if (code != 0) throw RenderException(code, input.path);
+  final code = await native(job.progress.address);
+  if (code != 0) throw RenderException(code, input);
   return output;
 }
 
@@ -104,5 +135,20 @@ int _renderSync(String lib, String inPath, String outPath, double semitones, dou
   } finally {
     malloc.free(a);
     malloc.free(b);
+  }
+}
+
+typedef _MixC = Int32 Function(Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Float>);
+typedef _MixDart = int Function(Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Float>);
+
+int _mixSync(String lib, String aPath, String bPath, String outPath, int progress) {
+  final mix = DynamicLibrary.open(lib).lookupFunction<_MixC, _MixDart>('maestro_mix');
+  final a = aPath.toNativeUtf8(), b = bPath.toNativeUtf8(), o = outPath.toNativeUtf8();
+  try {
+    return mix(a, b, o, Pointer.fromAddress(progress));
+  } finally {
+    malloc.free(a);
+    malloc.free(b);
+    malloc.free(o);
   }
 }

@@ -100,6 +100,8 @@ String? _cmake() {
   return path.isEmpty ? null : path;
 }
 
+const _minute = Duration(minutes: 1);
+
 void main() {
   late Directory tmp;
 
@@ -207,6 +209,61 @@ void main() {
     final song = Song(tmp, {'id': 'x', 'key_shift': 0, 'tempo': 1.0}, const [], File('${tmp.path}/l.lrc'));
     expect((await ensureRender(song)).path, '${tmp.path}/instrumental.flac');
     expect(Directory('${tmp.path}/render').existsSync(), isFalse);
+  });
+
+  File wav(String name, List<Float32List> ch, int rate) {
+    final f = File('${tmp.path}/$name');
+    writeWav(f, ch, rate);
+    return f;
+  }
+
+  Float32List samples(List<double> v) => Float32List.fromList(v);
+
+  test('mix: sample-exact sum from 0, as long as the longer input, shorter padded with silence', () async {
+    final a = wav('a.wav', [samples([0.1, 0.2, -0.3, 0.4, 0.5]), samples([0.0, 0.1, 0.1, 0.1, 0.1])], 44100);
+    final b = wav('b.wav', [samples([0.2, -0.1, 0.1]), samples([0.3, 0.3, 0.3])], 44100);
+    final w = readWav(await mixFile(b, a, File('${tmp.path}/render/m.wav'))); // shorter first: either order
+    expect(w.rate, 44100);
+    expect(w.ch.length, 2);
+    expect(w.ch[0].length, 5);
+    const q = 2 / 32767; // two 16-bit roundings
+    expect(w.ch[0], pairwiseCompare([0.3, 0.1, -0.2, 0.4, 0.5], (double x, double y) => (x - y).abs() < q, '≈'));
+    expect(w.ch[1], pairwiseCompare([0.3, 0.4, 0.4, 0.1, 0.1], (double x, double y) => (x - y).abs() < q, '≈'));
+  });
+
+  test('mix: clipping sum is normalised to ≤ 0.98, a quiet sum is not boosted', () async {
+    final loud = sine(44100, 44100, 440, 0.9);
+    final w = readWav(await mixFile(wav('a.wav', [loud], 44100), wav('b.wav', [loud], 44100), File('${tmp.path}/l.wav')));
+    expect(peak(w.ch), lessThanOrEqualTo(0.98 + 1 / 32767));
+    expect(peak(w.ch), greaterThan(0.97));
+    final quiet = sine(44100, 44100, 440, 0.1);
+    final w2 =
+        readWav(await mixFile(wav('c.wav', [quiet], 44100), wav('d.wav', [quiet], 44100), File('${tmp.path}/q.wav')));
+    expect(peak(w2.ch), closeTo(0.2, 0.002));
+  });
+
+  test('mix: different sample rates are refused', () async {
+    final s = sine(4410, 44100, 440, 0.1);
+    await expectLater(mixFile(wav('a.wav', [s], 44100), wav('b.wav', [s], 48000), File('${tmp.path}/x.wav')),
+        throwsA(isA<RenderException>().having((e) => e.code, 'code', -2)));
+  });
+
+  test('ensureGuideMix: null without vocals; reuses a fresh cache; re-makes a stale one', () async {
+    final song = Song(tmp, {'id': 'x'}, const [], File('${tmp.path}/l.lrc'));
+    expect(await ensureGuideMix(song), isNull);
+    // No FLAC encoder here, so the stems are WAV bytes under FLAC names: any real mix attempt fails
+    // with an input error. That makes "reused the cache" (no attempt) and "re-made it" (attempt) visible.
+    final stamp = DateTime(2026, 1, 1);
+    for (final n in ['instrumental.flac', 'vocals.flac']) {
+      wav(n, [sine(4410, 44100, 440, 0.1)], 44100).setLastModifiedSync(stamp);
+    }
+    final cached = wav('render_guide.wav', [sine(10, 44100, 440, 0.1)], 44100);
+    Directory('${tmp.path}/render').createSync();
+    final guide = cached.renameSync('${tmp.path}/render/guide_v1.wav')..setLastModifiedSync(stamp.add(_minute));
+    expect((await ensureGuideMix(song))!.path, guide.path);
+    File('${tmp.path}/vocals.flac').setLastModifiedSync(stamp.add(_minute * 2)); // Studio re-ran
+    await expectLater(ensureGuideMix(song), throwsA(isA<RenderException>().having((e) => e.code, 'code', -2)));
+    expect(guide.existsSync() || File('${guide.path}.tmp').existsSync(), isFalse);
   });
 
   test('timing: 4-minute stereo 44.1 kHz render', () async {

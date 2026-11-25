@@ -1,5 +1,6 @@
 // Maestro key/tempo render: decode FLAC (or WAV), pitch/tempo shift with
 // Signalsmith Stretch, write 16-bit PCM WAV. See docs/stage-manager-plan.md (WP-C1).
+// Also the editor's guide mix (instrumental + vocals), WP-B2.
 #pragma once
 
 #ifdef _WIN32
@@ -25,6 +26,12 @@ extern "C" {
 // `progress` (may be null) is set to 0..1 while rendering; 1 on success.
 MAESTRO_API int maestro_render(const char* in_path, const char* out_wav, float semitones, float tempo,
                                volatile float* progress);
+
+// Guide mix (WP-B2): a + b summed sample-for-sample from 0, the shorter one padded with silence,
+// so the result is as long as the longer input. Same rate required (else MAESTRO_ERR_INPUT); a mono
+// input is added to every channel. Peak-normalised to 0.98 only if the sum goes over. Same output
+// rules as maestro_render (16-bit WAV via "<out_wav>.tmp" + rename, progress 0..1).
+MAESTRO_API int maestro_mix(const char* a_path, const char* b_path, const char* out_wav, volatile float* progress);
 
 #ifdef __cplusplus
 }

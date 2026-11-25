@@ -232,3 +232,35 @@ extern "C" MAESTRO_API int maestro_render(const char* in_path, const char* out_w
     return MAESTRO_ERR_INTERNAL;
   }
 }
+
+extern "C" MAESTRO_API int maestro_mix(const char* a_path, const char* b_path, const char* out_wav,
+                                       volatile float* progress) {
+  if (!a_path || !b_path || !out_wav) return MAESTRO_ERR_ARGS;
+  if (progress) *progress = 0;
+  try {
+    Channels a, b;
+    unsigned rateA = 0, rateB = 0;
+    if (!decode(a_path, a, rateA)) return MAESTRO_ERR_INPUT;
+    if (progress) *progress = 0.4f;
+    if (!decode(b_path, b, rateB) || rateA != rateB) return MAESTRO_ERR_INPUT;
+    if (progress) *progress = 0.8f;
+    // Sum into the longer one, so the shorter is padded with silence. Both start at sample 0.
+    if (b[0].size() > a[0].size()) std::swap(a, b);
+    if (a.size() < b.size()) {  // mono + stereo: the mono one goes to both sides
+      const std::vector<float> first = a[0];  // a copy: resize may move a[0]
+      a.resize(b.size(), first);
+    }
+    for (size_t c = 0; c < a.size(); ++c) {
+      const auto& src = b[std::min(c, b.size() - 1)];
+      for (size_t i = 0; i < src.size(); ++i) a[c][i] += src[i];
+    }
+    b = Channels();
+    int r = writeWav(out_wav, a, rateA);
+    if (r == MAESTRO_OK && progress) *progress = 1;
+    return r;
+  } catch (const std::bad_alloc&) {
+    return MAESTRO_ERR_MEMORY;
+  } catch (...) {
+    return MAESTRO_ERR_INTERNAL;
+  }
+}

@@ -111,6 +111,44 @@ void main() {
     await tester.pumpWidget(const SizedBox()); // dispose: stops the position poll timer
   });
 
+  testWidgets('paused: click words to edit, "Add line here" under the playhead, Ctrl+Enter chains lines',
+      (tester) async {
+    final lrc = await _open(tester, '[00:01.00]alpha\n[00:05.00]beta\n');
+    final add = find.text('Add line here  (Ctrl+Enter)');
+    // Playhead 0:00 is before the first line, so the add row is at the top.
+    expect(add, findsOneWidget);
+    expect(tester.getTopLeft(add).dy, lessThan(tester.getTopLeft(find.text('alpha')).dy));
+
+    // Clicking the time column only selects; clicking the words opens the field.
+    await tester.tap(find.text('0:05.00'));
+    await tester.pump(const Duration(milliseconds: 500)); // past the double-click window
+    expect(find.byType(TextField), findsNothing);
+    await tester.tap(find.text('beta'));
+    await tester.pump();
+    expect(find.byType(TextField), findsOneWidget);
+    await _key(tester, LogicalKeyboardKey.escape);
+
+    // Add row: new line at the top, typed, then Ctrl+Enter keeps it and opens another below it.
+    await tester.tap(add);
+    await tester.pump();
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), 'intro one');
+    await _key(tester, LogicalKeyboardKey.enter, ctrl: true);
+    await tester.pump();
+    expect(find.byType(TextField), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'intro two');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    await _key(tester, LogicalKeyboardKey.keyS, ctrl: true);
+    for (var i = 0; i < 50 && find.text('Saved lyrics.roman.lrc').evaluate().isEmpty; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20))); // real file IO
+      await tester.pump();
+    }
+    expect(lrc.readAsStringSync(), 'intro one\nintro two\n[00:01.00]alpha\n[00:05.00]beta\n');
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('Backspace undo still hits the tapped line after a line above it is deleted', (tester) async {
     await _open(tester, 'a\nb\nc\n');
     await _key(tester, LogicalKeyboardKey.arrowDown);

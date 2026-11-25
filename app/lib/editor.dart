@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'library.dart';
 import 'lrc.dart';
 import 'lyrics_ops.dart';
+import 'render.dart';
 import 'theme.dart';
 
 /// Lyrics timing editor (SPEC.md §5.2, sync tools). Main tool is "tap": the selected line
@@ -40,12 +41,10 @@ class _EditorScreenState extends State<EditorScreen> {
   Duration _pos = Duration.zero, _length = Duration.zero;
   Timer? _poll;
   (int, DateTime)? _lastClick; // for double-click without delaying single clicks
+  double _tapX = 0; // where the last click landed in its row (time column vs words)
+  bool _ignoreBlur = false; // the field is being moved to another line, not left
+  String _hearing = 'Backing track';
 
-  late final File _vocalsFile = File('${widget.song.dir.path}/vocals.flac');
-  late final bool _hasVocals = _vocalsFile.existsSync();
-  late bool _vocals = _hasVocals; // vocals by default, so you hear where each line starts
-
-  File get _source => _vocals ? _vocalsFile : widget.song.audio;
   int get _from => min(_sel, _anchor ?? _sel);
   int get _to => max(_sel, _anchor ?? _sel);
 
@@ -54,7 +53,7 @@ class _EditorScreenState extends State<EditorScreen> {
     super.initState();
     // ReleaseMode.stop keeps the file loaded after the track ends, so you can seek back and keep syncing.
     _player.setReleaseMode(ReleaseMode.stop);
-    _load();
+    _startAudio();
     _player.onPlayerComplete.listen((_) => setState(() => _playing = false));
     _poll = Timer.periodic(const Duration(milliseconds: 50), (_) async {
       if (_switching) return;
@@ -62,29 +61,36 @@ class _EditorScreenState extends State<EditorScreen> {
       if (mounted && !_switching && p != null && p != _pos) setState(() => _pos = p);
     });
     _editFocus.addListener(() {
-      if (!_editFocus.hasFocus && _editing != null) _endEdit(save: true);
+      if (!_editFocus.hasFocus && _editing != null && !_ignoreBlur) _endEdit(save: true);
     });
   }
 
-  Future<void> _load() async {
-    await _player.setSource(DeviceFileSource(_source.path));
+  Future<void> _load(File f) async {
+    await _player.setSource(DeviceFileSource(f.path));
     final d = await _player.getDuration();
     if (mounted) setState(() => _length = d ?? Duration.zero);
   }
 
-  /// V: swap vocals/backing on the one player at the same position, keeping play state.
-  /// Both stems come from the same separation, so their timelines match.
-  Future<void> _switchSource() async {
-    if (!_hasVocals || _switching) return;
-    final at = _pos;
-    setState(() {
-      _vocals = !_vocals;
-      _switching = true;
-    });
+  /// Plays the instrumental at once, then swaps to the guide mix (the song with vocals, so you can
+  /// find your place) as soon as it's made, at the same position and play state. One player, so no drift.
+  Future<void> _startAudio() async {
+    await _load(widget.song.audio);
+    File? mix;
     try {
-      await _load();
-      await _player.seek(at);
+      mix = await ensureGuideMix(widget.song);
+    } catch (_) {
+      mix = null;
+    }
+    if (!mounted) return;
+    if (mix == null) return setState(() => _hearing = 'Backing track (no vocals to mix)');
+    setState(() => _switching = true); // the poll would read the new file's 0:00 meanwhile
+    try {
+      final now = await _player.getCurrentPosition(); // the poll's value can be 50 ms old
+      if (now != null && _playing) _pos = now;
+      await _load(mix);
+      await _player.seek(_pos); // _pos still follows seeks made during the swap
       if (_playing) await _player.resume();
+      if (mounted) setState(() => _hearing = 'Song with vocals');
     } finally {
       if (mounted) setState(() => _switching = false);
     }
@@ -188,7 +194,8 @@ class _EditorScreenState extends State<EditorScreen> {
       _sel = i.clamp(0, _lines.isEmpty ? 0 : _lines.length - 1);
     });
     if (_scroll.hasClients) {
-      _scroll.animateTo((_sel * _rowHeight - 200).clamp(0, _scroll.position.maxScrollExtent),
+      final row = _sel + (_showAdd && _sel >= _addAt ? 1 : 0);
+      _scroll.animateTo((row * _rowHeight - 200).clamp(0, _scroll.position.maxScrollExtent),
           duration: const Duration(milliseconds: 150), curve: Curves.easeOut);
     }
   }
@@ -210,6 +217,7 @@ class _EditorScreenState extends State<EditorScreen> {
   void _startEdit([int? i]) {
     if (_lines.isEmpty) return;
     final at = i ?? _sel;
+    _ignoreBlur = _editFocus.hasFocus; // moving straight from one line's field to another's
     setState(() {
       _editing = at;
       _edit.text = _lines[at].text;
@@ -217,6 +225,7 @@ class _EditorScreenState extends State<EditorScreen> {
     });
     _select(at);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _ignoreBlur = false;
       if (_editing != null) _editFocus.requestFocus();
     });
   }
@@ -259,9 +268,27 @@ class _EditorScreenState extends State<EditorScreen> {
     _keys.requestFocus();
   }
 
-  /// Ctrl+Enter: new untimed line below the selection, opened for typing.
-  void _insertBelow() {
-    final at = _lines.isEmpty ? 0 : _sel + 1;
+  /// "+ Add line" sits under the line at the playhead. Before any line is timed the playhead
+  /// can't place it, so it sits under the selected line instead. Paused only, so it doesn't
+  /// jump around while you tap.
+  bool get _showAdd => !_playing && _lines.isNotEmpty;
+  int get _addAt {
+    final c = currentLine(_lines, _pos);
+    return c < 0 && _lines.first.time == null ? _sel + 1 : c + 1;
+  }
+
+  /// Ctrl+Enter: paused, insert at "+ Add line"; playing, below the selection. Opens it for typing.
+  void _insertNew() => _insertAt(_showAdd ? _addAt : (_lines.isEmpty ? 0 : _sel + 1));
+
+  /// Ctrl+Enter in the field: keep this line and open another new one right under it.
+  void _saveAndAddBelow() {
+    final i = _editing!;
+    if (_edit.text.trim().isEmpty) return; // nothing typed yet: stay put
+    _endEdit(save: true);
+    _insertAt(i + 1);
+  }
+
+  void _insertAt(int at) {
     setState(() {
       _reindex(at, 1);
       _edited(insertAt(_lines, at));
@@ -382,7 +409,7 @@ class _EditorScreenState extends State<EditorScreen> {
       case LogicalKeyboardKey.space when e is KeyDownEvent:
         _toggle();
       case LogicalKeyboardKey.enter when e is KeyDownEvent && ctrl:
-        _insertBelow();
+        _insertNew();
       case LogicalKeyboardKey.enter when e is KeyDownEvent:
         _tap(follow: big);
       case LogicalKeyboardKey.backspace when e is KeyDownEvent:
@@ -399,8 +426,6 @@ class _EditorScreenState extends State<EditorScreen> {
         _mergeNext();
       case LogicalKeyboardKey.keyD when e is KeyDownEvent && ctrl:
         _duplicate();
-      case LogicalKeyboardKey.keyV when e is KeyDownEvent && !ctrl:
-        _switchSource();
       case LogicalKeyboardKey.arrowUp:
         _select(_sel - 1, extend: big);
       case LogicalKeyboardKey.arrowDown:
@@ -509,18 +534,7 @@ class _EditorScreenState extends State<EditorScreen> {
               onChanged: (v) => _seek(Duration(milliseconds: v.round())),
             ),
           ),
-          Tooltip(
-            message: _hasVocals ? 'Hear the vocal stem or the backing track (V)' : 'No vocals.flac for this song',
-            child: SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment(value: true, label: Text('Vocals')),
-                ButtonSegment(value: false, label: Text('Backing')),
-              ],
-              selected: {_vocals},
-              showSelectedIcon: false,
-              onSelectionChanged: _hasVocals ? (_) => _switchSource() : null,
-            ),
-          ),
+          Text(_hearing, style: const TextStyle(color: K.muted)),
         ]),
       );
 
@@ -559,9 +573,10 @@ class _EditorScreenState extends State<EditorScreen> {
       const Text(
           'Space play/pause  •  Enter = selected line starts now  •  Backspace undo tap  •  Shift+Enter tap + later lines follow'
           '  •  B instrumental now  •  ← → rewind/forward 5s (Shift 1s)  •  ↑ ↓ select  •  [ ] nudge line 0.1s  •  Click a line to hear it  •  Ctrl+S save'
-          '\nF2 / double-click edit words (Enter save, Esc cancel, Ctrl+Shift+Enter split at cursor)  •  Ctrl+Enter insert line'
-          '  •  Ctrl+Delete delete  •  Ctrl+M merge with next  •  Shift+↑↓ / Shift+click select lines  •  Ctrl+D duplicate (untimed)'
-          '  •  V vocals / backing',
+          '\nPaused: click the words to edit, click the time to hear the line  •  F2 / double-click edit'
+          '  •  In the field: Enter save, Esc cancel, Ctrl+Enter save + new line below, Ctrl+Shift+Enter split at cursor'
+          '\nCtrl+Enter add line (paused: at "Add line here", playing: below selection)  •  Ctrl+Delete delete'
+          '  •  Ctrl+M merge with next  •  Shift+↑↓ / Shift+click select lines  •  Ctrl+D duplicate (untimed)',
           style: TextStyle(color: K.muted, fontSize: 12)),
       const SizedBox(height: 8),
       Expanded(
@@ -570,15 +585,23 @@ class _EditorScreenState extends State<EditorScreen> {
           clipBehavior: Clip.antiAlias,
           child: ListView.builder(
             controller: _scroll,
-            itemCount: _lines.length,
+            itemCount: _lines.length + (_showAdd ? 1 : 0),
             itemExtent: _rowHeight,
-            itemBuilder: (_, i) {
+            itemBuilder: (_, row) {
+              final add = _showAdd ? _addAt : -1;
+              if (row == add) return _addRow();
+              final i = add >= 0 && row > add ? row - 1 : row;
               final l = _lines[i];
               final isPlaying = i == playing;
               final inRange = i >= _from && i <= _to;
               return InkWell(
+                onTapUp: (d) => _tapX = d.localPosition.dx,
                 onTap: () {
+                  // Look the line up again: ending an edit on pointer-down may have removed a line above.
+                  final i = _lines.indexOf(l);
+                  if (i < 0) return;
                   if (HardwareKeyboard.instance.isShiftPressed) return _select(i, extend: true);
+                  if (!_playing && _tapX > 16 + 90) return _startEdit(i); // paused: click the words to fix them
                   // Double-click by hand, so a single click (select + hear) isn't delayed by onDoubleTap.
                   final now = DateTime.now(), last = _lastClick;
                   _lastClick = (i, now);
@@ -625,6 +648,7 @@ class _EditorScreenState extends State<EditorScreen> {
         bindings: {
           const SingleActivator(LogicalKeyboardKey.escape): () => _endEdit(save: false),
           const SingleActivator(LogicalKeyboardKey.enter, control: true, shift: true): _splitEdit,
+          const SingleActivator(LogicalKeyboardKey.enter, control: true): _saveAndAddBelow,
           const SingleActivator(LogicalKeyboardKey.keyS, control: true): () {
             _endEdit(save: true);
             _save();
@@ -638,6 +662,18 @@ class _EditorScreenState extends State<EditorScreen> {
           decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8)),
           onSubmitted: (_) => _endEdit(save: true),
           onTapOutside: (_) => _endEdit(save: true),
+        ),
+      );
+
+  Widget _addRow() => InkWell(
+        onTap: _insertNew,
+        child: const Padding(
+          padding: EdgeInsets.only(left: 16 + 90),
+          child: Row(children: [
+            Icon(Icons.add, size: 18, color: K.accent),
+            SizedBox(width: 8),
+            Text('Add line here  (Ctrl+Enter)', style: TextStyle(color: K.accent)),
+          ]),
         ),
       );
 
