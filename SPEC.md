@@ -109,6 +109,7 @@ Karaoke/
     backing_vocals.flac    # optional, from Studio
     lyrics.roman.lrc       # optional, Romanised synced lyrics
     lyrics.deva.lrc        # optional, Devanagari synced lyrics
+    lyrics.draft.lrc       # optional, Studio-owned Whisper draft (low confidence); never for Konkani
     render/k{shift}_t{tempo×100}_v{n}.wav  # cached audio rendered at Ryan's key/tempo
   setlists/<setlist-id>.json
 ```
@@ -136,6 +137,8 @@ Karaoke/
 `setlist.json`: `{ "schema_version": 1, "name": "", "date": "", "venue": "", "start_time": "20:00", "changeover_s": 30, "items": [ { "id": "godacho-panv", "key_shift": null, "notes": "" }, { "break": true, "minutes": 15, "label": "Dinner" } ] }`. A per-gig `key_shift` overrides the song default when set. Breaks are timed items; changeover is added between consecutive songs only. Full rules: `docs/stage-manager-plan.md` (Shared contracts).
 
 **Timelines:** lyric timestamps are always stored against the **original** audio. Cuts and tempo are applied at render time, and stage mode maps each lyric time through the same cut list and tempo, so editing cuts never breaks a finished sync.
+
+**Lyrics drafts:** Studio may write `lyrics.draft.lrc` plus `"lyrics_draft": {"source": "whisper-large-v3-turbo", "language": "en", "confidence": "low"}` in song.json (both Studio-owned). Studio never writes `lyrics.roman.lrc`/`lyrics.deva.lrc`. When no `lyrics.<script>.lrc` exists, the app shows the draft with a "Whisper draft, low confidence" badge and status stays `needs_sync` even though the lines are timed. The first Save in the editor writes `lyrics.<script>.lrc`, which wins from then on.
 
 **Song status** is derived, not stored: `processing` (no song.json yet) → `needs_lyrics` → `needs_sync` (lyrics but no timings) → `ready`.
 

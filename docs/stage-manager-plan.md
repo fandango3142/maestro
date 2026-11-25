@@ -126,9 +126,10 @@ Turn Maestro from "a library that plays songs" into a stage manager. That means 
    - A **Play 15 s** button inside the dialog (reuse the preview logic) to identify a song by ear.
    - Enter saves, Esc cancels. The Library row updates without a full rescan flicker.
    - **Save & next unnamed** button: saves and opens the next song that still needs a name. This is how a 500-song library gets cleaned up in one sitting.
-3. "Needs a name" = artist empty **and** title still equals the source file's stem or the id. Add a **Needs name** option to the Status filter (or a separate small filter chip), showing the count.
-4. The existing edit-lyrics button stays. Rename its tooltip to "Edit lyrics timing" if needed, so the two pencils aren't confused (use `Icons.edit` for details, keep `Icons.edit_note` for lyrics).
-5. Tests: `saveSongFields` keeps unknown fields, refuses `original_key`, and the write is atomic (no `.tmp` left behind); the "needs name" rule.
+3. **Whisper lyric drafts** (SPEC §4 "Lyrics drafts"): `Song.load` falls back to `lyrics.draft.lrc` when no `lyrics.<script>.lrc` exists. `Song.isDraft` makes status `needsSync`, never `ready`. The Library row and the editor header show a "Whisper draft" badge. The editor's save target stays `lyrics.<script>.lrc`, so the draft is never overwritten. Test: draft fallback, the status override, and that a real file wins over the draft.
+4. "Needs a name" = artist empty **and** title still equals the source file's stem or the id. Add a **Needs name** option to the Status filter (or a separate small filter chip), showing the count.
+5. The existing edit-lyrics button stays. Rename its tooltip to "Edit lyrics timing" if needed, so the two pencils aren't confused (use `Icons.edit` for details, keep `Icons.edit_note` for lyrics).
+6. Tests: `saveSongFields` keeps unknown fields, refuses `original_key`, and the write is atomic (no `.tmp` left behind); the "needs name" rule.
 
 **Exit criteria**
 - [ ] Editing title/artist/language persists to `song.json`, and every other field in the file is byte-for-byte the same value (unit test).
