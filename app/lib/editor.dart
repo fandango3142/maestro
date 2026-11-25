@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:math';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +8,7 @@ import 'package:flutter/services.dart';
 
 import 'library.dart';
 import 'lrc.dart';
+import 'lyrics_ops.dart';
 import 'theme.dart';
 
 /// Lyrics timing editor (SPEC.md §5.2, sync tools). Main tool is "tap": the selected line
@@ -26,36 +29,77 @@ class _EditorScreenState extends State<EditorScreen> {
   final _scroll = ScrollController();
   final _paste = TextEditingController();
   final _keys = FocusNode();
+  final _edit = TextEditingController();
+  final _editFocus = FocusNode();
   late List<LyricLine> _lines = [...widget.song.lyrics];
   int _sel = 0;
+  int? _anchor; // other end of a Shift-selected range, null = just _sel
+  int? _editing; // line whose text field is open
   int? _lastTap; // for Backspace undo
-  bool _dirty = false, _playing = false;
+  bool _dirty = false, _playing = false, _switching = false;
   Duration _pos = Duration.zero, _length = Duration.zero;
   Timer? _poll;
+  (int, DateTime)? _lastClick; // for double-click without delaying single clicks
+
+  late final File _vocalsFile = File('${widget.song.dir.path}/vocals.flac');
+  late final bool _hasVocals = _vocalsFile.existsSync();
+  late bool _vocals = _hasVocals; // vocals by default, so you hear where each line starts
+
+  File get _source => _vocals ? _vocalsFile : widget.song.audio;
+  int get _from => min(_sel, _anchor ?? _sel);
+  int get _to => max(_sel, _anchor ?? _sel);
 
   @override
   void initState() {
     super.initState();
     // ReleaseMode.stop keeps the file loaded after the track ends, so you can seek back and keep syncing.
     _player.setReleaseMode(ReleaseMode.stop);
-    _player.setSource(DeviceFileSource(widget.song.audio.path)).then((_) async {
-      final d = await _player.getDuration();
-      if (mounted) setState(() => _length = d ?? Duration.zero);
-    });
+    _load();
     _player.onPlayerComplete.listen((_) => setState(() => _playing = false));
     _poll = Timer.periodic(const Duration(milliseconds: 50), (_) async {
+      if (_switching) return;
       final p = await _player.getCurrentPosition();
-      if (mounted && p != null && p != _pos) setState(() => _pos = p);
+      if (mounted && !_switching && p != null && p != _pos) setState(() => _pos = p);
     });
+    _editFocus.addListener(() {
+      if (!_editFocus.hasFocus && _editing != null) _endEdit(save: true);
+    });
+  }
+
+  Future<void> _load() async {
+    await _player.setSource(DeviceFileSource(_source.path));
+    final d = await _player.getDuration();
+    if (mounted) setState(() => _length = d ?? Duration.zero);
+  }
+
+  /// V: swap vocals/backing on the one player at the same position, keeping play state.
+  /// Both stems come from the same separation, so their timelines match.
+  Future<void> _switchSource() async {
+    if (!_hasVocals || _switching) return;
+    final at = _pos;
+    setState(() {
+      _vocals = !_vocals;
+      _switching = true;
+    });
+    try {
+      await _load();
+      await _player.seek(at);
+      if (_playing) await _player.resume();
+    } finally {
+      if (mounted) setState(() => _switching = false);
+    }
   }
 
   @override
   void dispose() {
+    _editing = null; // the text field unmounting must not try to save
     _poll?.cancel();
     _player.dispose();
     _scroll.dispose();
     _paste.dispose();
     _keys.dispose();
+    _edit.dispose();
+    _editFocus.dispose();
     super.dispose();
   }
 
@@ -136,12 +180,183 @@ class _EditorScreenState extends State<EditorScreen> {
     if (!_playing) _toggle();
   }
 
-  void _select(int i) {
-    setState(() => _sel = i.clamp(0, _lines.isEmpty ? 0 : _lines.length - 1));
+  /// Move the selection. [extend] (Shift) grows a range from where it was; any other move drops it,
+  /// so a range never outlives a change to the list.
+  void _select(int i, {bool extend = false}) {
+    setState(() {
+      _anchor = extend ? (_anchor ?? _sel) : null;
+      _sel = i.clamp(0, _lines.isEmpty ? 0 : _lines.length - 1);
+    });
     if (_scroll.hasClients) {
       _scroll.animateTo((_sel * _rowHeight - 200).clamp(0, _scroll.position.maxScrollExtent),
           duration: const Duration(milliseconds: 150), curve: Curves.easeOut);
     }
+  }
+
+  /// Keep Backspace-undo pointing at the same line after [delta] lines were inserted
+  /// (positive) or removed (negative) at index [at]. A removed tap can't be undone.
+  void _reindex(int at, int delta) {
+    final t = _lastTap;
+    if (t == null || t < at) return;
+    _lastTap = delta < 0 && t < at - delta ? null : t + delta;
+  }
+
+  void _edited(List<LyricLine> next) {
+    _lines = next;
+    _dirty = true;
+  }
+
+  /// F2 / double-click: open line [i]'s text for editing. Its time is kept.
+  void _startEdit([int? i]) {
+    if (_lines.isEmpty) return;
+    final at = i ?? _sel;
+    setState(() {
+      _editing = at;
+      _edit.text = _lines[at].text;
+      _edit.selection = TextSelection.collapsed(offset: _edit.text.length);
+    });
+    _select(at);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_editing != null) _editFocus.requestFocus();
+    });
+  }
+
+  /// Enter / click away saves, Esc cancels. Either way focus goes back to the tap-sync keys.
+  void _endEdit({required bool save}) {
+    final i = _editing;
+    if (i == null || !mounted) return;
+    _editing = null; // first, so the focus listener doesn't end it twice
+    final old = _lines[i];
+    final text = save ? _edit.text.trim() : old.text;
+    setState(() {
+      // An untimed line left empty (a new line never typed into) goes away, saved or not.
+      if (text != old.text || (text.isEmpty && old.time == null)) {
+        if (text.isEmpty && old.time == null) {
+          _reindex(i, -1);
+          if (i > 0) _sel = i - 1; // back to the line it was inserted below
+        }
+        _edited(setText(_lines, i, text));
+      }
+    });
+    _select(_sel);
+    _keys.requestFocus();
+  }
+
+  /// Ctrl+Shift+Enter while editing: split at the cursor; the second half is untimed.
+  void _splitEdit() {
+    final i = _editing!;
+    final raw = _edit.text;
+    final sel = _edit.selection;
+    final at = sel.isValid ? sel.start.clamp(0, raw.length) : raw.length;
+    final next = splitLine([..._lines]..[i] = LyricLine(_lines[i].time, raw), i, at);
+    if (next.length == _lines.length) return; // cursor at an end: nothing to split, keep editing
+    _editing = null;
+    setState(() {
+      _reindex(i + 1, 1);
+      _edited(next);
+    });
+    _select(i + 1);
+    _keys.requestFocus();
+  }
+
+  /// Ctrl+Enter: new untimed line below the selection, opened for typing.
+  void _insertBelow() {
+    final at = _lines.isEmpty ? 0 : _sel + 1;
+    setState(() {
+      _reindex(at, 1);
+      _edited(insertAt(_lines, at));
+    });
+    _startEdit(at);
+  }
+
+  /// Ctrl+Delete: remove the selected line or range. Neighbours keep their times.
+  void _deleteSel() => _deleteRange(_from, _to);
+
+  void _deleteRange(int a, int b) {
+    if (_lines.isEmpty) return;
+    setState(() {
+      _reindex(a, a - b - 1);
+      _edited(deleteRange(_lines, a, b));
+    });
+    _select(a);
+  }
+
+  /// Ctrl+M: join the selected line with the next; it keeps the first line's time.
+  void _mergeNext() {
+    if (_sel + 1 >= _lines.length) return;
+    setState(() {
+      _reindex(_sel + 1, -1);
+      _edited(mergeNext(_lines, _sel));
+    });
+    _select(_sel);
+  }
+
+  /// Ctrl+D: copy the selected range (a repeated chorus) right after it, untimed, ready to tap.
+  void _duplicate() {
+    if (_lines.isEmpty) return;
+    final b = _to;
+    final next = duplicateRange(_lines, _from, b);
+    final n = next.length - _lines.length;
+    if (n == 0) return; // only break markers selected
+    setState(() {
+      _reindex(b + 1, n);
+      _edited(next);
+    });
+    _select(b + 1);
+  }
+
+  Future<void> _replaceAll() async {
+    final words = [for (final l in _lines) if (!l.isBreak) l.text];
+    // ponytail: not disposed; the dialog's closing animation still reads it, and nothing listens after.
+    final c = TextEditingController(text: words.join('\n'));
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => ListenableBuilder(
+        listenable: c,
+        builder: (ctx, _) {
+          final after = textLines(c.text).length, before = words.length;
+          final note = after == before
+              ? 'Every line keeps its time.'
+              : after > before
+                  ? 'The first $before keep their times, ${after - before} new lines are untimed.'
+                  : 'The first $after keep their times, the last ${before - after} old lines are removed.';
+          return AlertDialog(
+            title: const Text('Replace all text'),
+            content: SizedBox(
+              width: 640,
+              height: 440,
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text(
+                    'Paste the new version, one line per lyric line. Lines are matched in order, '
+                    'so the first lines keep their times. Instrumental markers stay where they are.',
+                    style: TextStyle(color: K.muted)),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: TextField(
+                      controller: c, maxLines: null, expands: true, textAlignVertical: TextAlignVertical.top),
+                ),
+                const SizedBox(height: 8),
+                Text('Before: $before lines  ->  after: $after lines.  $note',
+                    style: TextStyle(color: after == before ? K.muted : K.accent)),
+              ]),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+              FilledButton(
+                  onPressed: after == 0 ? null : () => Navigator.pop(ctx, true), child: const Text('Replace')),
+            ],
+          );
+        },
+      ),
+    );
+    if (ok == true && mounted) {
+      setState(() {
+        _edited(replaceAllText(_lines, textLines(c.text)));
+        _lastTap = null;
+      });
+      _select(_sel);
+    }
+    _keys.requestFocus();
   }
 
   Future<void> _save() async {
@@ -155,28 +370,41 @@ class _EditorScreenState extends State<EditorScreen> {
 
   KeyEventResult _onKey(FocusNode _, KeyEvent e) {
     if (e is! KeyDownEvent && e is! KeyRepeatEvent) return KeyEventResult.ignored;
-    if (FocusManager.instance.primaryFocus?.context?.widget is EditableText) return KeyEventResult.ignored;
+    // Typing in a text field (line edit or paste box): its keys are characters, not shortcuts.
+    // The focused node belongs to a Focus *inside* EditableText, hence the ancestor lookup.
+    if (_editing != null ||
+        FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() != null) {
+      return KeyEventResult.ignored;
+    }
     final ctrl = HardwareKeyboard.instance.isControlPressed;
     final big = HardwareKeyboard.instance.isShiftPressed;
     switch (e.logicalKey) {
       case LogicalKeyboardKey.space when e is KeyDownEvent:
         _toggle();
+      case LogicalKeyboardKey.enter when e is KeyDownEvent && ctrl:
+        _insertBelow();
       case LogicalKeyboardKey.enter when e is KeyDownEvent:
         _tap(follow: big);
       case LogicalKeyboardKey.backspace when e is KeyDownEvent:
         _undo();
       case LogicalKeyboardKey.keyB when e is KeyDownEvent:
         _breakNow();
+      case LogicalKeyboardKey.delete when e is KeyDownEvent && ctrl:
+        _deleteSel();
       case LogicalKeyboardKey.delete when e is KeyDownEvent && _lines.isNotEmpty && _lines[_sel].isBreak:
-        setState(() {
-          _lines.removeAt(_sel);
-          _dirty = true;
-        });
-        _select(_sel);
+        _deleteRange(_sel, _sel);
+      case LogicalKeyboardKey.f2 when e is KeyDownEvent:
+        _startEdit();
+      case LogicalKeyboardKey.keyM when e is KeyDownEvent && ctrl:
+        _mergeNext();
+      case LogicalKeyboardKey.keyD when e is KeyDownEvent && ctrl:
+        _duplicate();
+      case LogicalKeyboardKey.keyV when e is KeyDownEvent && !ctrl:
+        _switchSource();
       case LogicalKeyboardKey.arrowUp:
-        _select(_sel - 1);
+        _select(_sel - 1, extend: big);
       case LogicalKeyboardKey.arrowDown:
-        _select(_sel + 1);
+        _select(_sel + 1, extend: big);
       case LogicalKeyboardKey.arrowLeft:
         _seek(_pos - Duration(seconds: big ? 1 : 5));
       case LogicalKeyboardKey.arrowRight:
@@ -198,7 +426,7 @@ class _EditorScreenState extends State<EditorScreen> {
       await showDialog<bool>(
             context: context,
             builder: (c) => AlertDialog(
-              title: const Text('Discard timing changes?'),
+              title: const Text('Discard unsaved changes?'),
               actions: [
                 TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Keep editing')),
                 FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Discard')),
@@ -235,6 +463,11 @@ class _EditorScreenState extends State<EditorScreen> {
                   ]),
                 ),
                 if (_dirty) const Text('Unsaved changes  ', style: TextStyle(color: K.accent)),
+                if (_lines.isNotEmpty) ...[
+                  OutlinedButton.icon(
+                      onPressed: _replaceAll, icon: const Icon(Icons.edit_note), label: const Text('Replace all text…')),
+                  const SizedBox(width: 12),
+                ],
                 FilledButton.icon(
                     onPressed: _dirty ? _save : null, icon: const Icon(Icons.save), label: const Text('Save')),
               ]),
@@ -276,6 +509,18 @@ class _EditorScreenState extends State<EditorScreen> {
               onChanged: (v) => _seek(Duration(milliseconds: v.round())),
             ),
           ),
+          Tooltip(
+            message: _hasVocals ? 'Hear the vocal stem or the backing track (V)' : 'No vocals.flac for this song',
+            child: SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(value: true, label: Text('Vocals')),
+                ButtonSegment(value: false, label: Text('Backing')),
+              ],
+              selected: {_vocals},
+              showSelectedIcon: false,
+              onSelectionChanged: _hasVocals ? (_) => _switchSource() : null,
+            ),
+          ),
         ]),
       );
 
@@ -313,7 +558,10 @@ class _EditorScreenState extends State<EditorScreen> {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Text(
           'Space play/pause  •  Enter = selected line starts now  •  Backspace undo tap  •  Shift+Enter tap + later lines follow'
-          '  •  B instrumental now  •  ← → rewind/forward 5s (Shift 1s)  •  ↑ ↓ select  •  [ ] nudge line 0.1s  •  Click a line to hear it  •  Ctrl+S save',
+          '  •  B instrumental now  •  ← → rewind/forward 5s (Shift 1s)  •  ↑ ↓ select  •  [ ] nudge line 0.1s  •  Click a line to hear it  •  Ctrl+S save'
+          '\nF2 / double-click edit words (Enter save, Esc cancel, Ctrl+Shift+Enter split at cursor)  •  Ctrl+Enter insert line'
+          '  •  Ctrl+Delete delete  •  Ctrl+M merge with next  •  Shift+↑↓ / Shift+click select lines  •  Ctrl+D duplicate (untimed)'
+          '  •  V vocals / backing',
           style: TextStyle(color: K.muted, fontSize: 12)),
       const SizedBox(height: 8),
       Expanded(
@@ -327,15 +575,24 @@ class _EditorScreenState extends State<EditorScreen> {
             itemBuilder: (_, i) {
               final l = _lines[i];
               final isPlaying = i == playing;
+              final inRange = i >= _from && i <= _to;
               return InkWell(
                 onTap: () {
+                  if (HardwareKeyboard.instance.isShiftPressed) return _select(i, extend: true);
+                  // Double-click by hand, so a single click (select + hear) isn't delayed by onDoubleTap.
+                  final now = DateTime.now(), last = _lastClick;
+                  _lastClick = (i, now);
                   _select(i);
+                  if (last != null && last.$1 == i && now.difference(last.$2) < const Duration(milliseconds: 400)) {
+                    _lastClick = null;
+                    return _startEdit(i);
+                  }
                   if (l.time != null) _seek(l.time! - const Duration(seconds: 2));
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
-                    color: i == _sel ? K.surface2 : null,
+                    color: inRange ? K.surface2 : null,
                     border: Border(left: BorderSide(color: i == _sel ? K.accent : Colors.transparent, width: 3)),
                   ),
                   child: Row(children: [
@@ -345,7 +602,7 @@ class _EditorScreenState extends State<EditorScreen> {
                           style: const TextStyle(color: K.muted, fontFeatures: K.tabular)),
                     ),
                     Expanded(
-                      child: Text(l.isBreak ? '♪  Instrumental' : l.text,
+                      child: i == _editing ? _lineField() : Text(l.isBreak ? '♪  Instrumental' : l.text,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 16,
@@ -363,6 +620,26 @@ class _EditorScreenState extends State<EditorScreen> {
       ),
     ]);
   }
+
+  Widget _lineField() => CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.escape): () => _endEdit(save: false),
+          const SingleActivator(LogicalKeyboardKey.enter, control: true, shift: true): _splitEdit,
+          const SingleActivator(LogicalKeyboardKey.keyS, control: true): () {
+            _endEdit(save: true);
+            _save();
+          },
+        },
+        child: TextField(
+          controller: _edit,
+          focusNode: _editFocus,
+          autofocus: true,
+          style: const TextStyle(fontSize: 16),
+          decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8)),
+          onSubmitted: (_) => _endEdit(save: true),
+          onTapOutside: (_) => _endEdit(save: true),
+        ),
+      );
 
   Widget _pasteBox() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text('No lyrics yet. Paste them below, one line per lyric line, then tap-sync.',
