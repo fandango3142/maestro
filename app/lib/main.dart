@@ -9,6 +9,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'editor.dart';
 import 'library.dart';
+import 'setlists_screen.dart';
 import 'stage.dart';
 import 'theme.dart';
 
@@ -44,6 +45,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   List<Song> _songs = [];
   String _language = 'All';
   SongStatus? _status;
+  bool _setlists = false; // sidebar page: Library or Setlists
 
   @override
   void initState() {
@@ -85,14 +87,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Future<void> _stage(Song? from) async {
-    final queue = _shown.where((s) => s.status != SongStatus.processing && s.audio.existsSync()).toList();
+    final queue = _shown.where((s) => s.playable).toList();
     if (queue.isEmpty) return;
     _previewStop?.cancel();
     await _preview.stop();
     setState(() => _previewing = null);
     if (!mounted) return;
     await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => StageScreen(queue: queue, start: from == null ? 0 : queue.indexOf(from).clamp(0, queue.length)),
+      builder: (_) => StageScreen.queue(queue, start: from == null ? 0 : queue.indexOf(from).clamp(0, queue.length)),
     ));
     _reload();
   }
@@ -110,12 +112,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Widget build(BuildContext context) {
     final shown = _shown;
     return CallbackShortcuts(
-      bindings: {const SingleActivator(LogicalKeyboardKey.slash): _searchFocus.requestFocus},
+      // Only on Library, so '/' still types in the setlist note fields.
+      bindings: {if (!_setlists) const SingleActivator(LogicalKeyboardKey.slash): _searchFocus.requestFocus},
       child: Scaffold(
         body: Row(children: [
           _sidebar(),
           Expanded(
-            child: Padding(
+            child: _setlists ? SetlistsScreen(root: widget.root, songs: _songs) : Padding(
               padding: const EdgeInsets.fromLTRB(32, 32, 32, 16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 _toolbar(),
@@ -145,16 +148,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
           Text('Offline  •  ${widget.root.path}',
               style: const TextStyle(color: K.muted, fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 28),
-          Container(
-            height: 44,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(color: K.surface2, borderRadius: BorderRadius.circular(6)),
-            child: const Row(children: [
-              Icon(Icons.library_music_outlined, color: K.accent, size: 20),
-              SizedBox(width: 12),
-              Text('Library', style: TextStyle(fontWeight: FontWeight.w600)),
-            ]),
-          ),
+          _nav(Icons.library_music_outlined, 'Library', !_setlists, () => setState(() => _setlists = false)),
+          const SizedBox(height: 4),
+          _nav(Icons.queue_music, 'Setlists', _setlists, () {
+            _previewStop?.cancel();
+            _preview.stop(); // so a preview can't play over a stage launched from Setlists
+            setState(() {
+              _previewing = null;
+              _setlists = true;
+            });
+          }),
           const Spacer(),
           // Stage is an action, not a page: one solid button so it never competes with the nav.
           SizedBox(
@@ -166,6 +169,24 @@ class _LibraryScreenState extends State<LibraryScreen> {
             ),
           ),
         ]),
+      );
+
+  Widget _nav(IconData icon, String label, bool selected, VoidCallback onTap) => Material(
+        color: selected ? K.surface2 : Colors.transparent,
+        borderRadius: BorderRadius.circular(6),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(children: [
+              Icon(icon, color: selected ? K.accent : K.muted, size: 20),
+              const SizedBox(width: 12),
+              Text(label, style: TextStyle(fontWeight: FontWeight.w600, color: selected ? K.text : K.muted)),
+            ]),
+          ),
+        ),
       );
 
   Widget _toolbar() {
@@ -240,13 +261,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  static const _cols = [4, 3, 2, 2, 1, 2]; // title, artist, language, key, bpm, status (flex)
+  static const _cols = [4, 3, 2, 2, 1, 2, 2]; // title, artist, language, key, bpm, duration, status (flex)
 
   Widget _table(List<Song> songs) => Container(
         decoration: BoxDecoration(color: K.surface1, borderRadius: BorderRadius.circular(8)),
         clipBehavior: Clip.antiAlias,
         child: Column(children: [
-          _row(const ['TITLE', 'ARTIST', 'LANGUAGE', 'KEY', 'BPM', 'STATUS'], header: true),
+          _row(const ['TITLE', 'ARTIST', 'LANGUAGE', 'KEY', 'BPM', 'DURATION', 'STATUS'], header: true),
           Expanded(
             child: songs.isEmpty
                 ? const Center(child: Text('No songs match', style: TextStyle(color: K.muted)))
@@ -282,7 +303,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Widget _songRow(Song s) {
-    final playable = s.status != SongStatus.processing && s.audio.existsSync();
+    final playable = s.playable;
     return InkWell(
       onTap: playable ? () => _stage(s) : null,
       hoverColor: K.surface2,
@@ -293,6 +314,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         s.language.isEmpty ? '—' : _cap(s.language),
         s.key.isEmpty ? '—' : s.key,
         s.bpm?.round() ?? '—',
+        mss(s.playedDuration),
         StatusChip(s.status),
       ], actions: [
         if (playable)

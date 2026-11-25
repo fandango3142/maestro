@@ -164,7 +164,7 @@ class _StageScreenState extends State<StageScreen> {
           child: Stack(children: [
             if (!_blackout) Center(child: _lyrics(big)),
             AnimatedOpacity(
-              opacity: _overlay && !_blackout ? 1 : 0,
+              opacity: (_overlay || _item.isBreak) && !_blackout ? 1 : 0, // breaks keep "Up next" visible
               duration: const Duration(milliseconds: 300),
               child: _chrome(),
             ),

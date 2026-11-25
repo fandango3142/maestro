@@ -9,7 +9,7 @@ class SetItem {
   SetItem(this.json);
   SetItem.song(String id) : json = {'id': id, 'key_shift': null, 'notes': ''};
   SetItem.pause({int minutes = 15, String label = 'Break'})
-      : json = {'break': true, 'minutes': minutes, 'label': label};
+    : json = {'break': true, 'minutes': minutes, 'label': label};
 
   bool get isBreak => json['break'] == true;
   String get songId => json['id'] as String? ?? '';
@@ -25,7 +25,7 @@ class Setlist {
   final Map<String, dynamic> json;
   final List<SetItem> items;
   Setlist(this.file, this.json)
-      : items = [for (final i in json['items'] as List? ?? const []) SetItem(Map<String, dynamic>.from(i as Map))];
+    : items = [for (final i in json['items'] as List? ?? const []) SetItem(Map<String, dynamic>.from(i as Map))];
 
   String get id => file.uri.pathSegments.last.replaceAll(RegExp(r'\.json$'), '');
   String get name => json['name'] as String? ?? id;
@@ -40,7 +40,7 @@ class Setlist {
   void save() {
     json['items'] = [for (final i in items) i.json];
     final tmp = File('${file.path}.tmp');
-    tmp.writeAsStringSync(const JsonEncoder.withIndent('  ').convert(json));
+    tmp.writeAsStringSync(const JsonEncoder.withIndent('  ').convert(json), flush: true);
     tmp.renameSync(file.path);
   }
 }
@@ -78,10 +78,21 @@ Setlist createSetlist(Directory root, String name, {Setlist? from}) {
   }
   final json = from == null
       ? <String, dynamic>{
-          'schema_version': 1, 'name': name, 'date': '', 'venue': '',
-          'start_time': '', 'changeover_s': 30, 'items': <Object>[],
+          'schema_version': 1,
+          'name': name,
+          'date': '',
+          'venue': '',
+          'start_time': '',
+          'changeover_s': 30,
+          'items': <Object>[],
         }
-      : jsonDecode(jsonEncode({...from.json, 'items': [for (final i in from.items) i.json]})) as Map<String, dynamic>;
+      : jsonDecode(
+              jsonEncode({
+                ...from.json,
+                'items': [for (final i in from.items) i.json],
+              }),
+            )
+            as Map<String, dynamic>;
   json['name'] = name;
   return Setlist(File('${d.path}/$id.json'), json)..save();
 }
@@ -106,7 +117,11 @@ String formatClock(Duration t) {
 /// A song lasts `durationOf(id)` (null/missing = 0). Changeover follows a song only when the
 /// next item is also a song. A break lasts its minutes, with no changeover either side.
 ({List<Duration> starts, Duration total}) planTimes(
-    List<SetItem> items, Duration? Function(String id) durationOf, Duration start, Duration changeover) {
+  List<SetItem> items,
+  Duration? Function(String id) durationOf,
+  Duration start,
+  Duration changeover,
+) {
   final starts = <Duration>[];
   var t = Duration.zero;
   for (final (i, item) in items.indexed) {
