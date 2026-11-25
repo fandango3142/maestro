@@ -13,7 +13,7 @@ Turn Maestro from "a library that plays songs" into a stage manager. That means 
 | The app owns `title`, `artist`, `language` in `song.json` | Studio sets the first guess (filename) and never overwrites: it skips any folder that already has `song.json` |
 | Key/tempo render runs **inside the app** | Native C++ (Signalsmith Stretch, MIT) via `dart:ffi`. The same code compiles for iPad later. No Python, no ffmpeg, no GPU box |
 | Render output is WAV: `render/k{shift}_t{tempo×100}_v{engine}.wav` | No encoder needed. Readable name = cache key. Engine version in the name invalidates old renders |
-| Build order A → B → B2 → C → D → E | A setlists, B names, B2 lyrics text, C key/tempo, D two-screen presenter, E audio trimmer |
+| Build order A → B2 → B → C → D → E | A setlists, B names, B2 lyrics text, C key/tempo, D two-screen presenter, E audio trimmer |
 
 ## Rules for every subagent (read first)
 **Do**
@@ -152,9 +152,11 @@ Turn Maestro from "a library that plays songs" into a stage manager. That means 
 3. Delete a line (`Ctrl+Delete`). Its neighbours keep their times.
 4. Split a line at the cursor (`Ctrl+Shift+Enter` while editing). The first half keeps the time, and the second half is untimed.
 5. Merge with the next line (`Ctrl+M`). The merged line keeps the first line's time.
-6. **"Replace all text…"** dialog: paste a full new version. Lines are matched in order: the first N lines keep their times, any extra are untimed, and if fewer lines come in, the leftovers are removed. A warning shows the before/after line counts.
-7. All edits go through the existing dirty flag + `Ctrl+S` save. Unsaved edits prompt on leaving (manager screen, so a dialog is fine).
-8. Tests: pure list operations (edit, insert, delete, split, merge, replace-all) keep the right times; untimed lines round-trip through `formatLrc`.
+6. **Duplicate a block** (for repeated choruses): Shift+click / Shift+↑↓ selects a range of lines; `Ctrl+D` inserts a copy of the range directly after it, **untimed**, ready to tap. Delete also works on a selected range.
+7. **Hear the vocals while syncing (Ryan, 2026-11-26):** the editor plays `vocals.flac` by default so he can hear where each line starts. `V` (and a toggle button "Vocals / Backing") switches to `instrumental.flac` at the **same position**, keeping play state. One player only, switching source + seek, so there's no drift between two players. The two stems come from the same separation, so their timelines are identical. Fall back to the instrumental if `vocals.flac` is missing.
+8. **"Replace all text…"** dialog: paste a full new version. Lines are matched in order: the first N lines keep their times, any extra are untimed, and if fewer lines come in, the leftovers are removed. A warning shows the before/after line counts.
+9. All edits go through the existing dirty flag + `Ctrl+S` save. Unsaved edits prompt on leaving (manager screen, so a dialog is fine).
+10. Tests: pure list operations (edit, insert, delete, range delete, duplicate block, split, merge, replace-all) keep the right times; untimed lines round-trip through `formatLrc`.
 
 **Exit criteria**
 - [ ] Each operation keeps every other line's timing byte-identical (unit tests).
@@ -290,9 +292,9 @@ Answer with evidence, by trying it in a throwaway branch/worktree:
 | Phase | Runs | Where | Gate before next phase |
 |---|---|---|---|
 | 1 | **WP-A** and **WP-C1** in parallel | A in the main tree (`app/lib`, `app/test`); C1 in its own git worktree (`app/native`, `app/lib/render.dart`, `app/windows/CMakeLists.txt`, its own test file) | Coordinator runs `/code-review` + `/ponytail-review` on each and fixes findings, then commits locally |
-| 2 | **WP-B** | main tree | same |
+| 2 | **WP-B2** (moved up 2026-11-26: Ryan needs it while testing) | main tree | same |
+| 2b | **WP-B** | main tree | same |
 | 3 | **WP-C2** (merge C1 first) | main tree | same, plus Ryan's ear test |
-| 2b | **WP-B2** | main tree | same |
 | 4 | **WP-D0** spike → Ryan approves → **WP-D1** | spike in a worktree, build in the main tree | same, plus Ryan's HDMI test |
 | 5 | **WP-E** (after the Studio `cut_suggestions` contract is agreed; the app-side fallback works without it) | main tree | same, plus Ryan's ear test |
 
