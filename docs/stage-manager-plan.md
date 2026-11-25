@@ -267,7 +267,7 @@ Answer with evidence, by trying it in a throwaway branch/worktree:
 - **Studio side (other session, `studio/`, not this plan's subagents):** writes `cut_suggestions` `[{start, end, kind: "speech"|"silence", confidence}]` into `song.json`. The contract is in SPEC §4/§5.2. Coordinator agrees the details with the Studio session before E starts.
 - **App side (this WP):**
   1. A waveform view in the song editor: backing track solid, vocal stem faint overlay. Waveform peaks are computed once and cached in `render/peaks_v1.bin`. Decode via the C1 native lib (add one `maestro_peaks` function) so there's no second decoder.
-  2. Flagged regions are drawn in amber with a label (Speech / Silence + confidence). Click → play from 1 s before the region. **Accept** → appended to `cuts` (with drag handles). **Dismiss** → its `[start,end]` goes into `dismissed_suggestions` and it stops showing.
+  2. Flagged regions are drawn in amber with a label (Speech / Silence + confidence). Click → play from 1 s before the region. **Accept** → appended to `cuts` (with drag handles). **Dismiss** → `{kind,start,end}` goes into `dismissed_suggestions`, and any later suggestion of the same kind overlapping it by ≥50% stays hidden.
   3. Manual cuts: drag on the waveform to select, `X` = cut. Trim-start/trim-end handles. Remove a cut with Delete.
   4. **App-side fallback flags** when Studio hasn't written suggestions: vocal-stem RMS above a threshold for ≥ 2 s where **no synced lyric line** covers it → "Possible speech". Leading/trailing full-mix RMS below −45 dBFS for ≥ 1.5 s → "Silence". Pure function, unit tested on synthetic signals.
   5. Render (C1) applies `cuts` with ~50 ms crossfades. Render file name gains a cuts hash (`…_c{hash8}_v2.wav`).
