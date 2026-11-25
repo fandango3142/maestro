@@ -8,6 +8,7 @@ import gc
 import json
 import re
 import shutil
+import subprocess
 import tempfile
 import time
 from pathlib import Path
@@ -19,6 +20,7 @@ INBOX, INBOX_BACKING = ROOT / "inbox", ROOT / "inbox-backing"
 LIBRARY, MODELS = ROOT / "library", ROOT / "models"
 AUDIO_EXT = {".mp3", ".flac", ".wav", ".m4a", ".ogg", ".opus", ".aac"}
 SEPARATION_MODEL = "model_bs_roformer_ep_317_sdr_12.9755.ckpt"
+WHISPER_MODEL = "large-v3-turbo"  # lyric drafts; measured 99% words heard, line starts ~0.5s off
 BACKING_MODEL = "mel_band_roformer_karaoke_becruily.ckpt"  # Ryan's pick by ear over frazer-becruily BS
 SCHEMA_VERSION = 1
 
@@ -60,6 +62,45 @@ def detect_key_bpm(path: Path) -> tuple[str, float]:
     return key + ("m" if scale == "minor" else ""), round(float(bpm), 1)
 
 
+def _stamp(sec: float) -> str:
+    cs = round(sec * 100)
+    return f"[{cs // 6000:02d}:{cs // 100 % 60:02d}.{cs % 100:02d}]"
+
+
+def draft_lyrics(dest: Path, language: str | None = None) -> dict | None:
+    """Whisper lyric draft -> dest/lyrics.draft.lrc (low confidence; Ryan fixes it in the app).
+    Never touches lyrics.roman/deva.lrc. Returns the song.json `lyrics_draft` entry, or None if skipped."""
+    if language == "konkani":  # Whisper has no Konkani; manual sync
+        return None
+    import ctypes, glob, nvidia.cublas, nvidia.cudnn  # CTranslate2 needs the pip CUDA 12 libs preloaded
+    for pkg in (nvidia.cublas, nvidia.cudnn):
+        for so in sorted(glob.glob(list(pkg.__path__)[0] + "/lib/lib*.so*")):
+            try:
+                ctypes.CDLL(so, mode=ctypes.RTLD_GLOBAL)
+            except OSError:
+                pass
+    import numpy as np
+    from faster_whisper import WhisperModel
+
+    # Decode with ffmpeg ourselves (faster-whisper's PyAV path breaks on newer av releases).
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(dest / "vocals.flac"), "-ac", "1", "-ar", "16000",
+                          "-f", "f32le", "-"], capture_output=True, check=True).stdout
+    model = WhisperModel(WHISPER_MODEL, device="cuda", compute_type="int8")
+    segs, info = model.transcribe(np.frombuffer(raw, np.float32), vad_filter=True, condition_on_previous_text=False)
+    lines, prev_end = [], None
+    for seg in segs:
+        if prev_end is not None and seg.start - prev_end > 6:  # long vocal gap = instrumental break
+            lines.append(_stamp(prev_end + 0.5))
+        lines.append(_stamp(seg.start) + seg.text.strip())
+        prev_end = seg.end
+    del model
+    gc.collect()
+    if info.language_probability < 0.5 or not lines:  # unsure what language: draft would be noise
+        return None
+    (dest / "lyrics.draft.lrc").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return {"source": f"whisper-{WHISPER_MODEL}", "language": info.language, "confidence": "low"}
+
+
 def done(src: Path) -> bool:
     return (LIBRARY / slug(src.stem) / "song.json").exists()
 
@@ -85,6 +126,11 @@ def process(src: Path, keep_backing: bool) -> None:
     }
     if keep_backing:
         song["backing_model"] = BACKING_MODEL
+    try:  # a failed draft must not fail the song
+        if draft := draft_lyrics(dest):
+            song["lyrics_draft"] = draft
+    except Exception as e:
+        print(f"{time.strftime('%H:%M:%S')} lyrics draft skipped: {e}")
     # Written last: its existence means the song is complete.
     (dest / "song.json").write_text(json.dumps(song, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"{time.strftime('%H:%M:%S')} done  {dest.name}: key {key}, {bpm} bpm, {time.monotonic() - started:.0f}s")

@@ -6,7 +6,10 @@ dependencies = [
     "audio-separator[cpu]>=0.48.0",
     "audioread>=3.1.0",
     "essentia>=2.1b6.dev1389 ; sys_platform == 'linux'",
+    "faster-whisper>=1.2.1 ; sys_platform == 'linux'",
     "librosa>=1.0.1",
+    "nvidia-cublas-cu12>=12.9.3.13 ; sys_platform == 'linux'",
+    "nvidia-cudnn-cu12>=9.28.1.4 ; sys_platform == 'linux'",
     "python-stretch>=0.3.1",
     "soundfile>=0.14.0",
 ]
