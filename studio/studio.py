@@ -12,8 +12,6 @@ import tempfile
 import time
 from pathlib import Path
 
-import librosa
-import numpy as np
 import torch
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -23,12 +21,6 @@ AUDIO_EXT = {".mp3", ".flac", ".wav", ".m4a", ".ogg", ".opus", ".aac"}
 SEPARATION_MODEL = "model_bs_roformer_ep_317_sdr_12.9755.ckpt"
 BACKING_MODEL = "mel_band_roformer_karaoke_becruily.ckpt"  # Ryan's pick by ear over frazer-becruily BS
 SCHEMA_VERSION = 1
-
-# Krumhansl-Kessler key profiles, index 0 = tonic.
-MAJOR = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88])
-MINOR = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
-NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-
 
 def slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
@@ -58,15 +50,14 @@ def separate(src: Path, dest: Path, model: str, names: dict[str, str]) -> None:
 
 
 def detect_key_bpm(path: Path) -> tuple[str, float]:
-    y, sr = librosa.load(path, sr=22050, mono=True)
-    chroma = librosa.feature.chroma_cqt(y=y, sr=sr).mean(axis=1)
-    scores = [
-        (np.corrcoef(chroma, np.roll(profile, tonic))[0, 1], f"{NOTES[tonic]}{suffix}")
-        for profile, suffix in ((MAJOR, ""), (MINOR, "m"))
-        for tonic in range(12)
-    ]
-    tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
-    return max(scores)[1], round(float(np.atleast_1d(tempo)[0]), 1)
+    """Essentia (wheel-first): edma profile got Queen right (D major, 153 BPM) where our own
+    Krumhansl-on-chroma said Em/76. BPM can still be half/double on ballads; editable in the app."""
+    import essentia.standard as es  # Linux-only wheel; Studio runs on the GPU box
+
+    audio = es.MonoLoader(filename=str(path), sampleRate=44100)()
+    key, scale, _strength = es.KeyExtractor(profileType="edma")(audio)
+    bpm = es.RhythmExtractor2013(method="multifeature")(audio)[0]
+    return key + ("m" if scale == "minor" else ""), round(float(bpm), 1)
 
 
 def done(src: Path) -> bool:

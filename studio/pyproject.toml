@@ -5,6 +5,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "audio-separator[cpu]>=0.48.0",
     "audioread>=3.1.0",
+    "essentia>=2.1b6.dev1389 ; sys_platform == 'linux'",
     "librosa>=1.0.1",
     "python-stretch>=0.3.1",
     "soundfile>=0.14.0",

@@ -294,6 +294,19 @@ wheels = [
 ]
 
 [[package]]
+name = "essentia"
+version = "2.1b6.dev1389"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "pyyaml", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "six", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c0/24/8ed5806bb62c4d8e5bb6a83bda4d03d501465c804f6d7d2a678defb4f0e2/essentia-2.1b6.dev1389-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:5905c38da25d8ccf4259bd045e50242103a47f482b77559ec6899d4b463ca4e7", size = 13763604, upload-time = "2025-07-24T21:08:14.54Z" },
+]
+
+[[package]]
 name = "filelock"
 version = "4.3.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1032,6 +1045,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "audio-separator", extra = ["cpu"] },
     { name = "audioread" },
+    { name = "essentia", marker = "sys_platform == 'linux'" },
     { name = "librosa" },
     { name = "python-stretch" },
     { name = "soundfile" },
@@ -1041,6 +1055,7 @@ dependencies = [
 requires-dist = [
     { name = "audio-separator", extras = ["cpu"], specifier = ">=0.48.0" },
     { name = "audioread", specifier = ">=3.1.0" },
+    { name = "essentia", marker = "sys_platform == 'linux'", specifier = ">=2.1b6.dev1389" },
     { name = "librosa", specifier = ">=1.0.1" },
     { name = "python-stretch", specifier = ">=0.3.1" },
     { name = "soundfile", specifier = ">=0.14.0" },
