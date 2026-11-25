@@ -46,7 +46,7 @@ Owner: Ryan (performer, the only user). Readers: Ryan, Claude, and any agent hel
 
 `studio.py` turns each audio file dropped into `inbox/` into `library/<song-id>/`. Steps:
 1. Separate → `instrumental.flac`, `vocals.flac` (done)
-2. Detect key + BPM → `song.json` (done)
+2. Detect key + BPM → `song.json` (done, Essentia `edma` profile; matched Queen = D major, 153 BPM). BPM is inherently ambiguous by ×2 or ÷2 (the audio alone can't tell a 4/4 feel from a 2/4 or half-time feel), so Ryan's app-owned `bpm_override` is the source of truth when set.
 3. Split vocals → `lead_vocals.flac`, `backing_vocals.flac`. **Opt-in** via `inbox-backing/` (box desktop: "Karaoke Inbox (keep backing)"), model `mel_band_roformer_karaoke_becruily` (done). Opt-in because on songs with no backing vocals the model mislabels parts of the lead as backing.
 4. Lyrics: fetch from the local LRCLIB copy → align with ctc-forced-aligner on the vocal track (planned)
 5. Render key/tempo/mix → `render/<hash>.flac` (planned)
