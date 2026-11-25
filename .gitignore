@@ -6,3 +6,4 @@ models/
 __pycache__/
 studio.log
 inbox-backing/
+sync.log
