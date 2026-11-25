@@ -67,11 +67,10 @@ def _stamp(sec: float) -> str:
     return f"[{cs // 6000:02d}:{cs // 100 % 60:02d}.{cs % 100:02d}]"
 
 
-def draft_lyrics(dest: Path, language: str | None = None) -> dict | None:
+def draft_lyrics(dest: Path) -> dict | None:
     """Whisper lyric draft -> dest/lyrics.draft.lrc (low confidence; Ryan fixes it in the app).
-    Never touches lyrics.roman/deva.lrc. Returns the song.json `lyrics_draft` entry, or None if skipped."""
-    if language == "konkani":  # Whisper has no Konkani; manual sync
-        return None
+    Never touches lyrics.roman/deva.lrc. Runs for every language incl. Konkani (Ryan: "still pass it");
+    language_probability tells the app how unsure Whisper was. Returns the `lyrics_draft` entry."""
     import ctypes, glob, nvidia.cublas, nvidia.cudnn  # CTranslate2 needs the pip CUDA 12 libs preloaded
     for pkg in (nvidia.cublas, nvidia.cudnn):
         for so in sorted(glob.glob(list(pkg.__path__)[0] + "/lib/lib*.so*")):
@@ -104,10 +103,15 @@ def draft_lyrics(dest: Path, language: str | None = None) -> dict | None:
         lines.append(_stamp(cur[0][0]) + "".join(t for _, t in cur).strip())
     del model
     gc.collect()
-    if info.language_probability < 0.5 or not lines:  # unsure what language: draft would be noise
+    if not lines:
         return None
-    (dest / "lyrics.draft.lrc").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return {"source": f"whisper-{WHISPER_MODEL}", "language": info.language, "confidence": "low"}
+    text = "\n".join(lines) + "\n"
+    (dest / "lyrics.draft.lrc").write_text(text, encoding="utf-8")
+    # Whisper writes Hindi (and often Konkani) in Devanagari; tell the app which script the draft is in.
+    deva = sum("ऀ" <= c <= "ॿ" for c in text) > sum(c.isascii() and c.isalpha() for c in text)
+    return {"source": f"whisper-{WHISPER_MODEL}", "language": info.language,
+            "language_probability": round(info.language_probability, 2),
+            "script": "deva" if deva else "latin", "confidence": "low"}
 
 
 def done(src: Path) -> bool:
