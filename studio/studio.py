@@ -86,13 +86,22 @@ def draft_lyrics(dest: Path, language: str | None = None) -> dict | None:
     raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(dest / "vocals.flac"), "-ac", "1", "-ar", "16000",
                           "-f", "f32le", "-"], capture_output=True, check=True).stdout
     model = WhisperModel(WHISPER_MODEL, device="cuda", compute_type="int8")
-    segs, info = model.transcribe(np.frombuffer(raw, np.float32), vad_filter=True, condition_on_previous_text=False)
-    lines, prev_end = [], None
-    for seg in segs:
-        if prev_end is not None and seg.start - prev_end > 6:  # long vocal gap = instrumental break
+    segs, info = model.transcribe(np.frombuffer(raw, np.float32), vad_filter=True,
+                                  condition_on_previous_text=False, word_timestamps=True)
+    # Re-split into stage-sized lines: new line at a pause (>0.5s), after a comma/full stop once
+    # the line has 5+ words, or at 10 words. Whisper's own segments can run 30+ words.
+    lines, cur, prev_end = [], [], None
+    for w in (w for seg in segs for w in seg.words):
+        gap = w.start - prev_end if prev_end is not None else 0
+        if cur and (gap > 0.5 or len(cur) >= 10 or (len(cur) >= 5 and cur[-1][1].rstrip()[-1:] in ",.!?")):
+            lines.append(_stamp(cur[0][0]) + "".join(t for _, t in cur).strip())
+            cur = []
+        if gap > 6:  # long vocal gap = instrumental break
             lines.append(_stamp(prev_end + 0.5))
-        lines.append(_stamp(seg.start) + seg.text.strip())
-        prev_end = seg.end
+        cur.append((w.start, w.word))
+        prev_end = w.end
+    if cur:
+        lines.append(_stamp(cur[0][0]) + "".join(t for _, t in cur).strip())
     del model
     gc.collect()
     if info.language_probability < 0.5 or not lines:  # unsure what language: draft would be noise
