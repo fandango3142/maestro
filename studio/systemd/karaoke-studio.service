@@ -4,3 +4,7 @@ Description=Karaoke Studio: process inbox
 [Service]
 Type=oneshot
 ExecStart=%h/karaoke/studio/run.sh
+
+[Install]
+# Also run at boot, so songs left in the inbox after a restart still get processed.
+WantedBy=default.target
