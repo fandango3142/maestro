@@ -5,7 +5,7 @@ Source of truth for *what the app is*: `SPEC.md`. This doc is *how we build the 
 
 ## Status (2026-11-26, paused at Ryan's request)
 - Done: **WP-A** setlists, **WP-C1** render engine (approved by ear), **WP-B2** lyrics editor (plus revision: guide mix, inline edit/add while paused), and UI overflow fixes at 1280x720.
-- Next when resumed: **WP-B** song details (names, bpm_override, Whisper drafts with deva/roman save target) → **WP-C2** → **WP-D0** spike → **WP-D1** → **WP-E**.
+- Resumed 2026-11-26. WP-B done; D0 spike done (awaiting Ryan's go for D1). Order now: **WP-C2** (building) → **WP-B3** accordion/tags → **WP-D1** (when approved) / **WP-E**.
 - Open owner checks: hand-test the lyrics editor on Godacho Panv; run a real setlist through stage mode.
 
 ## Goal
@@ -174,6 +174,32 @@ Turn Maestro from "a library that plays songs" into a stage manager. That means 
 
 ---
 
+## WP-B3: Library song accordion (Ryan, 2026-11-26)
+**Goal:** clicking a song in the Library no longer opens stage mode. It expands an in-place detail panel (accordion) with everything Ryan knows about the song, with tags and notes editable right there.
+
+**Build**
+1. **Row click / Enter toggles the accordion** (one open at a time; Esc or a second click closes it). Stage opens **only** from the existing mic button and "Start stage". Update the footer hint text.
+2. Panel contents (read-only unless noted):
+   - Key: original → shifted, and tempo (e.g. `Gm → Am · 0.95x`), BPM (`bpm_override ?? bpm`), played duration, language, lyrics status + draft badge.
+   - **Notes** (editable multi-line, saves `notes` via `saveSongFields`, debounced ~500 ms like setlists).
+   - **Tags** (editable): chips with ✕, plus an input with autocomplete from every tag already used in the library. Enter adds the tag. Stored as `tags: [..]` strings, trimmed, case-insensitive de-duplication, original casing kept. Placeholder hint: "genre, occasion… e.g. Goan, Wedding, Slow dance".
+   - **In setlists:** every setlist containing the song: setlist name, date/venue, position (`#3 of 12`), gig key override, gig note. Click → opens that setlist in the Setlists screen.
+   - Buttons: **Details…** (the WP-B dialog), **Edit lyrics**, **Preview 15 s**, **Open in stage**.
+3. **Tag filter** in the Library toolbar (spec §5.1): "Tag: All" plus every tag with its count. Search also matches tags.
+4. Performance: the panel builds only for the open row. Setlist membership is computed once per Library load (one pass over setlists), not per row.
+5. Tests: tag add/remove/de-duplicate persists via `saveSongFields` and keeps unknown fields; the tag filter; setlist membership lookup; the accordion at 1280x720 with long notes, 10 tags and 3 setlists → no overflow; row click doesn't push the stage route.
+
+**Exit criteria**
+- [ ] Clicking a row expands details; stage opens only via the mic button / Start stage (widget test).
+- [ ] Tags and notes persist to `song.json` and survive a rescan; other fields unchanged (unit test).
+- [ ] The tag filter and tag search work.
+- [ ] Setlist membership shows the gig override and note.
+- [ ] analyze / test / build green; no overflow at 1280x720.
+
+**Out of scope:** tag categories/colours, a tag manager screen, renaming a tag across all songs, bulk tagging, notes in stage mode (WP-D's presenter shows gig notes).
+
+---
+
 ## WP-C: Key and tempo rendered in the app
 Split into two parts. **C1 can start in parallel with WP-A** (new files only, run in its own git worktree).
 
@@ -302,6 +328,7 @@ Answer with evidence, by trying it in a throwaway branch/worktree:
 | 2 | **WP-B2** (moved up 2026-11-26: Ryan needs it while testing) | main tree | same |
 | 2b | **WP-B** | main tree | same |
 | 3 | **WP-C2** (merge C1 first) | main tree | same, plus Ryan's ear test |
+| 3b | **WP-B3** library accordion + tags (after C2, same files) | main tree | same |
 | 4 | **WP-D0** spike → Ryan approves → **WP-D1** | spike in a worktree, build in the main tree | same, plus Ryan's HDMI test |
 | 5 | **WP-E** (after the Studio `cut_suggestions` contract is agreed; the app-side fallback works without it) | main tree | same, plus Ryan's ear test |
 
