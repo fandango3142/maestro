@@ -18,8 +18,10 @@ The box serves more than one project: Maestro's sections are marked. Add any new
 **Rules.** A project that has a live workload gets priority (today that's Maestro Studio). Cap every experiment's memory so it can't freeze the box:
 
 ```sh
-systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=1G <command>
+systemd-run --user --scope -p MemoryMax=4.5G -p MemorySwapMax=1G <command>
 ```
+
+Keep **MemoryMax + MemorySwapMax under about 5.5 GB** in total. Swap lands in zram first, and zram lives in physical RAM, so a big swap allowance still starves the box. Long jobs also need a watcher that kills them when `studio.py` starts, so Maestro keeps priority.
 
 ## Connect
 
@@ -116,6 +118,7 @@ The Windows laptop's "Maestro Sync" task (`studio/sync.ps1`) runs every 2 minute
 | Date | Command / change | Why |
 |---|---|---|
 | 2026-11-26 | `systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=1G` on all bench jobs | An AudioSR test used all 8 GB, the box swapped and froze, and it needed a power-cycle |
+| 2026-11-26 | Rule: total cap (MemoryMax + MemorySwapMax) at most about 5.5 GB; no AudioSR until the RAM upgrade | AudioSR at 6.5G + 2G of swap froze the box a second time, because zram swap takes physical RAM |
 | 2026-11-26 | `systemctl --user disable --now openclaw-gateway` (undo: `enable --now`) | Stop OpenClaw to free RAM for benchmarks |
 | 2026-11-26 | **Done 18:21** (verified: idle RAM about 1 GB, down from 2 GB; Studio's boot run worked headless): `sudo sh ~/music-bench/box-tune.sh`, then reboot. ntfy, which was a container, is also off. Boots headless (`multi-user.target`), stops Docker containers and sets them to `--restart=no` (old policies saved in `~/music-bench/docker-restart-policies.txt`), adds zram swap (half of RAM, zstd, priority 100), turns off Bluetooth. Undo lines are at the bottom of the script | Free RAM and stop the slow hard-drive swapping. Catch: headless means no LocalSend, and stopping Docker takes the port 7000 app offline |
 | 2026-11-26 | `echo 'ryan ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff' \| sudo tee /etc/sudoers.d/maestro-poweroff` | Shut the box down over SSH without a password (allows only that one command) |
