@@ -266,6 +266,86 @@ void main() {
     expect(guide.existsSync() || File('${guide.path}.tmp').existsSync(), isFalse);
   });
 
+  // WP-E: cuts with crossfaded joins, and the trimmer's waveform data.
+  double maxStep(Float32List x) {
+    var m = 0.0;
+    for (var i = 1; i < x.length; i++) {
+      m = max(m, (x[i] - x[i - 1]).abs());
+    }
+    return m;
+  }
+
+  test('cut join is crossfaded: no sample jump; audio away from the join is untouched; exact length', () async {
+    const rate = 44100, hz = 440.0;
+    final src = sine(4 * rate, rate, hz, 0.5);
+    const a = 1.0 + 1 / (4 * hz), b = 2.0; // from a peak (+0.5) to a zero crossing: a hard cut jumps 0.5
+    final fa = (a * rate).round(), fb = b * rate ~/ 1;
+    final hardJump = (src[fa - 1] - src[fb]).abs();
+    final out = await renderFile(input([src], rate), File('${tmp.path}/o.wav'), 0, 1.0, cuts: const [(a, b)]);
+    final w = readWav(out).ch[0];
+    expect(w.length, src.length - (fb - fa));
+    final step = maxStep(w), natural = maxStep(src);
+    // ignore: avoid_print
+    print('cut join: max sample step ${step.toStringAsFixed(4)} (sine alone ${natural.toStringAsFixed(4)}, '
+        'hard cut ${hardJump.toStringAsFixed(4)})');
+    expect(hardJump, greaterThan(0.4)); // the test would catch a missing crossfade
+    expect(step, lessThan(natural + 0.01));
+    const q = 1.5 / 32767, h = rate * 25 ~/ 1000;
+    for (final i in [0, fa - h - 1]) {
+      expect(w[i], closeTo(src[i], q));
+    }
+    for (final k in [h + 1, 10000]) {
+      expect(w[fa + k], closeTo(src[fb + k], q));
+    }
+  });
+
+  test('cuts + tempo: length is (original − cuts) / tempo and a tone lands where fromOriginal says', () async {
+    const rate = 44100, tempo = 1.25;
+    final src = sine(6 * rate, rate, 440, 0.5, startAt: 3 * rate); // silent 3 s, then tone
+    final out = await renderFile(input([src, src], rate), File('${tmp.path}/o.wav'), 2, tempo,
+        cuts: const [(0.5, 1.5), (5.0, 5.5)]);
+    final w = readWav(out);
+    expect(w.ch[0].length, ((6 * rate - 1.5 * rate) / tempo).round());
+    final expected = (3.0 - 1.0) / tempo; // 3 s original, 1 s cut before it
+    final ms = (onset(w.ch[0], 0.25) / rate - expected) * 1000;
+    expect(ms.abs(), lessThan(15), reason: 'onset offset $ms ms');
+  });
+
+  test('cut at the start fades in, cut at the end fades out; cutting everything or bad cuts fail', () async {
+    const rate = 44100;
+    final src = sine(3 * rate, rate, 440, 0.5);
+    final w = readWav(await renderFile(input([src], rate), File('${tmp.path}/o.wav'), 0, 1.0,
+            cuts: const [(0.0, 1.0 + 1 / 1760), (2.5, 3.0)]))
+        .ch[0];
+    expect(w.first.abs(), lessThan(0.05));
+    expect(w.last.abs(), lessThan(0.05));
+    expect(maxStep(w), lessThan(maxStep(src) + 0.01));
+    final f = input([src], rate);
+    await expectLater(renderFile(f, File('${tmp.path}/all.wav'), 0, 1.0, cuts: const [(0.0, 3.0)]),
+        throwsA(isA<RenderException>().having((e) => e.code, 'code', -2)));
+    await expectLater(renderFile(f, File('${tmp.path}/bad.wav'), 0, 1.0, cuts: const [(2.0, 2.5), (1.0, 1.5)]),
+        throwsA(isA<RenderException>().having((e) => e.code, 'code', -1)));
+  });
+
+  test('peaks: RMS per 1/50 s of backing and vocals, vocals padded; cached file reused', () async {
+    const rate = 44100;
+    final tone = Float32List.fromList([...sine(rate, rate, 441, 0.5), ...Float32List(rate)]); // 1 s tone, 1 s quiet
+    final a = wav('a.wav', [tone, tone], rate), v = wav('v.wav', [Float32List.fromList(List.filled(rate ~/ 2, 0.25))], rate);
+    final out = File('${tmp.path}/render/peaks_v1.bin');
+    final p = await peaksFile(a, v, out);
+    expect(p.backing.length, 100);
+    expect(p.vocals.length, 100);
+    expect(p.backing[10], closeTo(0.5 / sqrt2, 0.01));
+    expect(p.backing[80], lessThan(0.001));
+    expect(p.vocals[5], closeTo(0.25, 0.001));
+    expect(p.vocals[60], 0); // past the end of the shorter stem
+    final mtime = out.lastModifiedSync();
+    expect((await peaksFile(a, null, out)).backing.length, 100);
+    expect(out.lastModifiedSync(), mtime);
+    final noVocals = await peaksFile(a, null, File('${tmp.path}/p2.bin'));
+    expect(noVocals.vocals.every((x) => x == 0), isTrue);
+  });
+
   test('timing: 4-minute stereo 44.1 kHz render', () async {
     const rate = 44100, frames = 240 * rate;
     final r = Random(1);

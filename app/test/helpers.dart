@@ -72,7 +72,7 @@ class FakeRenders {
         started.add((s.id, shift, tempo));
         progress[s.id] = onProgress;
         await (gates[s.id] = Completer<void>()).future;
-        return File('${s.dir.path}/render/${renderFileName(shift, tempo)}')
+        return File('${s.dir.path}/render/${renderFileName(shift, tempo, s.cuts)}')
           ..createSync(recursive: true)
           ..writeAsStringSync('wav');
       };

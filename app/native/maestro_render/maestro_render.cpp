@@ -40,6 +40,7 @@ bool openWav(drwav* w, const Path& p) { return drwav_init_file_w(w, p.c_str(), n
 bool createWav(drwav* w, const Path& p, const drwav_data_format* f) {
   return drwav_init_file_write_w(w, p.c_str(), f, nullptr);
 }
+FILE* openWrite(const Path& p) { return _wfopen(p.c_str(), L"wb"); }
 void removeFile(const Path& p) { DeleteFileW(p.c_str()); }
 bool replaceFile(const Path& from, const Path& to) {
   return MoveFileExW(from.c_str(), to.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
@@ -52,6 +53,7 @@ bool openWav(drwav* w, const Path& p) { return drwav_init_file(w, p.c_str(), nul
 bool createWav(drwav* w, const Path& p, const drwav_data_format* f) {
   return drwav_init_file_write(w, p.c_str(), f, nullptr);
 }
+FILE* openWrite(const Path& p) { return std::fopen(p.c_str(), "wb"); }
 void removeFile(const Path& p) { std::remove(p.c_str()); }
 bool replaceFile(const Path& from, const Path& to) { return std::rename(from.c_str(), to.c_str()) == 0; }
 #endif
@@ -161,6 +163,74 @@ bool stretchAll(Channels& in, Channels& out, int outFrames, unsigned sampleRate,
   return true;
 }
 
+// Drops the `n` cut spans in `cuts` ([start, end] seconds of the input, sorted, non-overlapping) and
+// joins what's left with a 50 ms linear crossfade centred on each join, so the output is exactly the
+// kept frames long and each join sits where the cut-time mapping in lib/library.dart puts it. Audio
+// that starts or ends at a cut fades in/out over 25 ms. False if nothing is left.
+bool applyCuts(Channels& audio, unsigned sampleRate, const double* cuts, int n) {
+  const size_t total = audio[0].size();
+  auto frame = [&](double sec) {
+    return std::min(total, static_cast<size_t>(std::llround(std::max(0.0, sec) * sampleRate)));
+  };
+  std::vector<std::pair<size_t, size_t>> keep;  // [from, to) frames
+  size_t pos = 0;
+  for (int k = 0; k < n; ++k) {
+    const size_t a = frame(cuts[2 * k]), b = frame(cuts[2 * k + 1]);
+    if (a > pos) keep.push_back({pos, a});
+    pos = std::max(pos, b);
+  }
+  if (pos < total) keep.push_back({pos, total});
+  if (keep.empty()) return false;
+
+  const size_t half = sampleRate * 25 / 1000;
+  auto len = [&](size_t j) { return keep[j].second - keep[j].first; };
+  for (auto& ch : audio) {
+    std::vector<float> out;
+    out.reserve(total);
+    for (size_t j = 0; j < keep.size(); ++j) {
+      const size_t o = out.size();  // output frame where segment j starts = the join
+      out.insert(out.end(), ch.begin() + keep[j].first, ch.begin() + keep[j].second);
+      if (j == 0) continue;
+      // Fade the audio running on past the cut out and the audio leading into this segment in. Both
+      // sides read real input (from inside the cut), and h <= half of each segment keeps reads in range.
+      const size_t e = keep[j - 1].second, s = keep[j].first;
+      const size_t h = std::min({half, len(j - 1) / 2, len(j) / 2});
+      for (size_t i = 0; i < 2 * h; ++i) {
+        const float t = (static_cast<float>(i) + 0.5f) / static_cast<float>(2 * h);
+        out[o - h + i] = ch[e - h + i] * (1 - t) + ch[s - h + i] * t;
+      }
+    }
+    if (keep.front().first > 0) {  // trimmed start
+      const size_t h = std::min(half, len(0) / 2);
+      for (size_t i = 0; i < h; ++i) out[i] *= (static_cast<float>(i) + 0.5f) / static_cast<float>(h);
+    }
+    if (keep.back().second < total) {  // trimmed end
+      const size_t h = std::min(half, len(keep.size() - 1) / 2);
+      for (size_t i = 0; i < h; ++i) out[out.size() - 1 - i] *= (static_cast<float>(i) + 0.5f) / static_cast<float>(h);
+    }
+    ch.swap(out);
+  }
+  return true;
+}
+
+// RMS over all channels of each 1/binsPerSecond s bin, into `out`. False if undecodable.
+bool rmsBins(const char* path, float binsPerSecond, std::vector<float>& out) {
+  Channels audio;
+  unsigned rate = 0;
+  if (!decode(path, audio, rate)) return false;
+  const double perBin = rate / static_cast<double>(binsPerSecond);
+  const size_t frames = audio[0].size(), bins = static_cast<size_t>(std::ceil(frames / perBin));
+  out.assign(bins, 0.0f);
+  for (size_t b = 0; b < bins; ++b) {
+    const size_t from = static_cast<size_t>(b * perBin), to = std::min(frames, static_cast<size_t>((b + 1) * perBin));
+    double sum = 0;
+    for (const auto& ch : audio)
+      for (size_t i = from; i < to; ++i) sum += static_cast<double>(ch[i]) * ch[i];
+    if (to > from) out[b] = static_cast<float>(std::sqrt(sum / static_cast<double>((to - from) * audio.size())));
+  }
+  return true;
+}
+
 int writeWav(const std::string& outPath, const Channels& out, unsigned sampleRate) {
   const unsigned channels = static_cast<unsigned>(out.size());
   const size_t frames = out[0].size();
@@ -206,24 +276,33 @@ int writeWav(const std::string& outPath, const Channels& out, unsigned sampleRat
 }  // namespace
 
 extern "C" MAESTRO_API int maestro_render(const char* in_path, const char* out_wav, float semitones,
-                                          float tempo, volatile float* progress) {
+                                          float tempo, const double* cuts, int n_cuts,
+                                          volatile float* progress) {
   if (!in_path || !out_wav || !std::isfinite(semitones) || !std::isfinite(tempo)) return MAESTRO_ERR_ARGS;
   if (std::fabs(semitones) > 24 || tempo < 0.25f || tempo > 4.0f) return MAESTRO_ERR_ARGS;
+  if (n_cuts < 0 || (n_cuts > 0 && !cuts)) return MAESTRO_ERR_ARGS;
+  for (int k = 0; k < n_cuts; ++k) {
+    const double a = cuts[2 * k], b = cuts[2 * k + 1];
+    if (!std::isfinite(a) || !std::isfinite(b) || b <= a || (k > 0 && a < cuts[2 * k - 1])) return MAESTRO_ERR_ARGS;
+  }
   if (progress) *progress = 0;
   try {
     Channels in;
     unsigned sampleRate = 0;
     if (!decode(in_path, in, sampleRate)) return MAESTRO_ERR_INPUT;
+    if (n_cuts > 0 && !applyCuts(in, sampleRate, cuts, n_cuts)) return MAESTRO_ERR_INPUT;
     const size_t inFrames = in[0].size();
     if (inFrames > static_cast<size_t>(INT_MAX / 4)) return MAESTRO_ERR_INPUT;  // Signalsmith uses int lengths
 
-    const int outFrames = static_cast<int>(std::llround(static_cast<double>(inFrames) / tempo));
-    if (outFrames < 1) return MAESTRO_ERR_INPUT;
-    Channels out(in.size(), std::vector<float>(static_cast<size_t>(outFrames)));
-    if (!stretchAll(in, out, outFrames, sampleRate, semitones, progress)) return MAESTRO_ERR_INPUT;
-    in = Channels();  // free the input before writing
+    if (semitones != 0 || tempo != 1.0f) {  // else cuts only: the audio is already final
+      const int outFrames = static_cast<int>(std::llround(static_cast<double>(inFrames) / tempo));
+      if (outFrames < 1) return MAESTRO_ERR_INPUT;
+      Channels out(in.size(), std::vector<float>(static_cast<size_t>(outFrames)));
+      if (!stretchAll(in, out, outFrames, sampleRate, semitones, progress)) return MAESTRO_ERR_INPUT;
+      in.swap(out);  // frees the input before writing
+    }
 
-    int r = writeWav(out_wav, out, sampleRate);
+    int r = writeWav(out_wav, in, sampleRate);
     if (r == MAESTRO_OK && progress) *progress = 1;
     return r;
   } catch (const std::bad_alloc&) {
@@ -258,6 +337,35 @@ extern "C" MAESTRO_API int maestro_mix(const char* a_path, const char* b_path, c
     int r = writeWav(out_wav, a, rateA);
     if (r == MAESTRO_OK && progress) *progress = 1;
     return r;
+  } catch (const std::bad_alloc&) {
+    return MAESTRO_ERR_MEMORY;
+  } catch (...) {
+    return MAESTRO_ERR_INTERNAL;
+  }
+}
+
+extern "C" MAESTRO_API int maestro_peaks(const char* a_path, const char* b_path, const char* out_path,
+                                         float bins_per_second) {
+  if (!a_path || !out_path || !std::isfinite(bins_per_second) || bins_per_second < 1 || bins_per_second > 1000)
+    return MAESTRO_ERR_ARGS;
+  try {
+    std::vector<float> a, b;
+    if (!rmsBins(a_path, bins_per_second, a)) return MAESTRO_ERR_INPUT;
+    if (b_path && !rmsBins(b_path, bins_per_second, b)) return MAESTRO_ERR_INPUT;
+    b.resize(a.size(), 0.0f);  // no vocals, or a different length: as many bins as `a`, zero-padded
+    const Path dst = toPath(out_path), tmp = toPath(std::string(out_path) + ".tmp");
+    if (dst.empty() || tmp.empty()) return MAESTRO_ERR_ARGS;
+    FILE* f = openWrite(tmp);
+    if (!f) return MAESTRO_ERR_OUTPUT;
+    const uint32_t n = static_cast<uint32_t>(a.size());
+    bool ok = std::fwrite(&n, sizeof n, 1, f) == 1;
+    ok = ok && std::fwrite(a.data(), sizeof(float), n, f) == n && std::fwrite(b.data(), sizeof(float), n, f) == n;
+    ok = (std::fclose(f) == 0) && ok;
+    if (!ok || !replaceFile(tmp, dst)) {
+      removeFile(tmp);
+      return MAESTRO_ERR_OUTPUT;
+    }
+    return MAESTRO_OK;
   } catch (const std::bad_alloc&) {
     return MAESTRO_ERR_MEMORY;
   } catch (...) {

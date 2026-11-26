@@ -62,7 +62,7 @@ void main() {
         final s = mk('a', tempo: tempo, renders: ['k0_t${(tempo * 100).round()}_v1.wav']);
         final p = playbackFor(s, 0);
         final heard = Duration(microseconds: (60e6 / tempo).round());
-        expect(toOriginal(heard, s, playingTempo: p.tempo).inMilliseconds, closeTo(60000, 1));
+        expect(toOriginal(heard, s, playing: p).inMilliseconds, closeTo(60000, 1));
         expect(s.playedDurationAt(p.tempo)!.inMilliseconds, closeTo(100000 / tempo, 1));
       });
 
@@ -70,7 +70,7 @@ void main() {
         final s = mk('a', tempo: tempo);
         final p = playbackFor(s, 0);
         expect(p.tempo, 1.0);
-        expect(toOriginal(const Duration(seconds: 60), s, playingTempo: p.tempo), const Duration(seconds: 60));
+        expect(toOriginal(const Duration(seconds: 60), s, playing: p), const Duration(seconds: 60));
         expect(s.playedDurationAt(p.tempo), const Duration(seconds: 100)); // set times use the real length
       });
     }

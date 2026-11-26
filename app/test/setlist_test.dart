@@ -144,14 +144,14 @@ void main() {
       expect(flacDuration(short), isNull);
     });
 
-    test('Song.playedDuration applies cuts and tempo; toOriginal scales by tempo', () {
+    test('Song.playedDuration applies cuts and tempo; toOriginal undoes both', () {
       final d = Directory('${root.path}/library/s')..createSync(recursive: true);
       File('${d.path}/instrumental.flac').writeAsBytesSync(_flacHeader(48000, 48000 * 100)); // 100 s
       File('${d.path}/song.json').writeAsStringSync('{"id":"s","tempo":1.25,"cuts":[[0,5],[50,55]]}');
       final song = Song.load(d);
       expect(song.duration, _s * 100);
       expect(song.playedDuration, _s * 72); // (100 - 10) / 1.25
-      expect(toOriginal(_s * 8, song), _s * 10);
+      expect(toOriginal(_s * 8, song), _s * 15); // 8 × 1.25 = 10 s of cut audio, + the 5 s cut at 0
       expect(Song.load(Directory('${root.path}/library/none')).playedDuration, isNull);
     });
   });

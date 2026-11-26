@@ -15,6 +15,7 @@ import 'song_details.dart';
 import 'song_panel.dart';
 import 'stage.dart';
 import 'theme.dart';
+import 'trim.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,8 +46,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
   final _preview = Preview();
   List<Song> _songs = [];
   String _language = 'All';
-  Object? _status; // null = all, a SongStatus, or _needsName
-  static const _needsName = 'needs-name';
+  Object? _status; // null = all, a SongStatus, _needsName or _needsTrim
+  static const _needsName = 'needs-name', _needsTrim = 'needs-trim';
   bool _setlists = false; // sidebar page: Library or Setlists
   String? _showSetlist; // the setlist the Setlists page opens on (from a panel's "In setlists")
   String? _open; // id of the song whose detail panel is open; one at a time
@@ -80,7 +81,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
     return _songs
         .where((s) => q.isEmpty || '${s.title} ${s.artist} ${s.tags.join(' ')}'.toLowerCase().contains(q))
         .where((s) => _language == 'All' || s.language.toLowerCase() == _language.toLowerCase())
-        .where((s) => _status == null || (_status == _needsName ? s.needsName : s.status == _status))
+        .where((s) => switch (_status) {
+              null => true,
+              _needsName => s.needsName,
+              _needsTrim => needsTrimReview(s),
+              final st => s.status == st,
+            })
         .where((s) => tag == null || s.tags.any((t) => t.toLowerCase() == tag))
         .toList();
   }
@@ -147,6 +153,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
     if (!mounted) return;
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => EditorScreen(song: s)));
     _reload();
+  }
+
+  /// The trimmer saves cuts as it goes; on the way out, render them at the song's key/tempo.
+  Future<void> _trim(Song s) async {
+    await _preview.stop();
+    if (!mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => TrimScreen(song: s)));
+    if (!mounted) return;
+    setState(() {}); // new length; the song was updated in place
+    _render(s);
   }
 
   @override
@@ -263,6 +279,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         null: 'Status: All',
         for (final s in SongStatus.values) s: K.statusLabel(s),
         _needsName: 'Needs name (${_songs.where((s) => s.needsName).length})',
+        _needsTrim: 'Needs trim review (${_songs.where(needsTrimReview).length})',
       }, (v) => setState(() => _status = v)),
       const SizedBox(width: 12),
       _dropdown<String?>(_tag, {null: 'Tag: All', for (final e in tags.entries) e.key: '${e.key} (${e.value})'},
@@ -427,6 +444,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         onClose: () => _toggle(s),
         onDetails: () => _details(s),
         onEdit: () => _edit(s),
+        onTrim: () => _trim(s),
         onStage: () => _stage(s),
         onOpenSetlist: _openSetlist,
       ),

@@ -16,7 +16,7 @@ class SongPanel extends StatefulWidget {
   final List<String> allTags; // every tag in the library, for autocomplete
   final List<Membership> setlists;
   final Preview preview;
-  final VoidCallback onTagsChanged, onClose, onDetails, onEdit, onStage;
+  final VoidCallback onTagsChanged, onClose, onDetails, onEdit, onTrim, onStage;
   final ValueChanged<String> onOpenSetlist;
 
   const SongPanel({
@@ -29,6 +29,7 @@ class SongPanel extends StatefulWidget {
     required this.onClose,
     required this.onDetails,
     required this.onEdit,
+    required this.onTrim,
     required this.onStage,
     required this.onOpenSetlist,
   });
@@ -248,6 +249,9 @@ class _SongPanelState extends State<SongPanel> {
       OutlinedButton.icon(
           onPressed: playable ? widget.onEdit : null, icon: const Icon(Icons.edit_note, size: 18),
           label: const Text('Edit lyrics')),
+      OutlinedButton.icon(
+          onPressed: playable ? widget.onTrim : null, icon: const Icon(Icons.content_cut, size: 18),
+          label: Text(needsTrimReview(s) ? 'Trim audio (flags to review)' : 'Trim audio')),
       OutlinedButton.icon(
           onPressed: playable ? () => widget.preview.toggle(s) : null,
           icon: Icon(playing ? Icons.stop : Icons.play_arrow, size: 18),

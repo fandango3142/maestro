@@ -51,7 +51,8 @@ class _StageScreenState extends State<StageScreen> {
   late final _plan = planTimes(widget.items, (id) {
     final s = widget.songs[id];
     if (s == null) return null;
-    return s.playedDurationAt(playbackFor(s, _shiftOf(widget.items.firstWhere((i) => i.songId == id))).tempo);
+    final p = playbackFor(s, _shiftOf(widget.items.firstWhere((i) => i.songId == id)));
+    return s.playedDurationAt(p.tempo, cuts: p.cuts);
   }, Duration.zero, widget.changeover);
 
   @override
@@ -212,7 +213,7 @@ class _StageScreenState extends State<StageScreen> {
       ]);
     }
     // Lyric times are stored against the original audio; map with the tempo of the file playing.
-    final pos = toOriginal(_pos, _song, playingTempo: _play.tempo);
+    final pos = toOriginal(_pos, _song, playing: _play);
     final cur = currentLine(lines, pos);
     final next = cur + 1 < lines.length ? lines[cur + 1] : null;
     final since = cur < 0 ? Duration.zero : lines[cur].time!;

@@ -72,17 +72,39 @@ class Song {
   /// What plays at the song's own tempo: (original − cuts) / tempo. Null if the length is unknown.
   Duration? get playedDuration => playedDurationAt(tempo);
 
-  /// (original − cuts) / [tempo]: the length of a file that plays at [tempo].
-  Duration? playedDurationAt(double tempo) {
+  /// (original − [cuts]) / [tempo]: the length of a file that plays at [tempo] with [cuts] (default:
+  /// the song's) taken out. A fallback to the original has no cuts: pass its [Playback.cuts].
+  Duration? playedDurationAt(double tempo, {List<Cut>? cuts}) {
     final d = duration;
     if (d == null) return null;
-    final cut = (json['cuts'] as List? ?? const [])
-        .whereType<List>()
-        .where((c) => c.length == 2 && c[0] is num && c[1] is num)
-        .fold<double>(0, (sum, c) => sum + max(0, (c[1] as num) - (c[0] as num)));
+    final cut = (cuts ?? this.cuts).fold<double>(0, (sum, c) => sum + c.$2 - c.$1);
     final secs = max(0, d.inMicroseconds / 1e6 - cut) / (tempo > 0 ? tempo : 1);
     return Duration(microseconds: (secs * 1e6).round());
   }
+
+  /// `cuts` (seconds of the original to skip), cleaned: valid pairs only, clamped to the track, sorted,
+  /// overlapping or touching ones merged. A malformed field reads as none.
+  List<Cut> get cuts {
+    final end = duration == null ? double.infinity : duration!.inMicroseconds / 1e6;
+    return normalizeCuts([
+      for (final c in json['cuts'] is List ? json['cuts'] as List : const [])
+        if (c is List && c.length == 2 && c[0] is num && c[1] is num)
+          ((c[0] as num).toDouble(), min((c[1] as num).toDouble(), end)),
+    ]);
+  }
+
+  /// Studio's `cut_suggestions`, or null when Studio hasn't written any (the app then flags on its own).
+  List<Flag>? get suggestions {
+    final raw = json['cut_suggestions'];
+    if (raw is! List) return null;
+    return [for (final f in raw) ?flagFrom(f)];
+  }
+
+  /// `dismissed_suggestions`: flags Ryan dismissed. Malformed entries read as none.
+  List<Flag> get dismissed => [
+        if (json['dismissed_suggestions'] is List)
+          for (final f in json['dismissed_suggestions'] as List) ?flagFrom(f),
+      ];
 
   bool get playable => status != SongStatus.processing && original.existsSync();
 
@@ -186,25 +208,103 @@ Song? nextUnnamed(List<Song> songs, Song after) {
   return null;
 }
 
-/// A file to play, the tempo and key shift it really plays at, and whether it stands in for a missing render.
-typedef Playback = ({File file, double tempo, int shift, bool fallback});
+/// A file to play, the tempo and key shift it really plays at, the cuts baked into it, and whether it
+/// stands in for a missing render.
+typedef Playback = ({File file, double tempo, int shift, List<Cut> cuts, bool fallback});
 
 /// What plays for [s] at [shift] semitones and [tempo] (default: the song's tempo): the render when its
-/// file exists, else the original. [tempo] is then the speed the chosen file really plays at (1.0 for
-/// the original), and [fallback] says a render was wanted but isn't on disk yet. Lyric timing and
-/// lengths must use this [tempo], or a song playing the original would drift.
+/// file exists, else the original. [tempo] and [cuts] are then what the chosen file really has (1.0 and
+/// none for the original), and [fallback] says a render was wanted but isn't on disk yet. Lyric timing
+/// and lengths must use these, or a song playing the original would drift.
 Playback playbackFor(Song s, int shift, [double? tempo]) {
   final t = ((tempo ?? s.tempo) * 100).round() / 100; // same rounding as the render's file name
-  final name = renderFileName(shift, t);
+  final cuts = s.cuts;
+  final name = renderFileName(shift, t, cuts);
   final render = name == null ? null : File('${s.dir.path}/render/$name');
-  if (render != null && render.existsSync()) return (file: render, tempo: t, shift: shift, fallback: false);
-  return (file: s.original, tempo: 1.0, shift: 0, fallback: render != null);
+  if (render != null && render.existsSync()) {
+    return (file: render, tempo: t, shift: shift, cuts: cuts, fallback: false);
+  }
+  return (file: s.original, tempo: 1.0, shift: 0, cuts: const <Cut>[], fallback: render != null);
 }
 
-/// Maps a playback position to the original-audio position lyrics are stored against.
-/// [playingTempo] is the tempo of the file actually playing (see [playbackFor]); default the song's.
-// ponytail: cuts slot in here once the cuts editor exists; today it's tempo only.
-Duration toOriginal(Duration playbackPos, Song s, {double? playingTempo}) => playbackPos * (playingTempo ?? s.tempo);
+/// Maps a playback position to the original-audio position lyrics are stored against: undo the tempo,
+/// then step over each cut before it. [playing] is what's really playing (see [playbackFor]); default:
+/// the song's own render (its tempo and cuts).
+Duration toOriginal(Duration playbackPos, Song s, {Playback? playing}) => _secs(
+    cutToOriginal(playbackPos.inMicroseconds / 1e6 * (playing?.tempo ?? s.tempo), playing?.cuts ?? s.cuts));
+
+/// The inverse: where a lyric at original time [original] is heard in what's playing. A time inside a
+/// cut is heard at the join.
+Duration fromOriginal(Duration original, Song s, {Playback? playing}) => _secs(
+    originalToCut(original.inMicroseconds / 1e6, playing?.cuts ?? s.cuts) / (playing?.tempo ?? s.tempo));
+
+Duration _secs(double s) => Duration(microseconds: (s * 1e6).round());
+
+/// A span of the original audio in seconds, (start, end).
+typedef Cut = (double, double);
+
+/// Sorted, merged (overlapping or touching), start clamped at 0, empty ones dropped.
+List<Cut> normalizeCuts(Iterable<Cut> cuts) {
+  final sorted = [for (final c in cuts) (max(0.0, c.$1), c.$2)].where((c) => c.$2 > c.$1).toList()
+    ..sort((a, b) => a.$1.compareTo(b.$1));
+  final out = <Cut>[];
+  for (final c in sorted) {
+    if (out.isNotEmpty && c.$1 <= out.last.$2) {
+      out.last = (out.last.$1, max(out.last.$2, c.$2));
+    } else {
+      out.add(c);
+    }
+  }
+  return out;
+}
+
+/// Seconds into the cut audio -> seconds into the original. [cuts] must be normalized.
+double cutToOriginal(double t, List<Cut> cuts) {
+  for (final (a, b) in cuts) {
+    if (t < a) break;
+    t += b - a; // a join plays the audio after the cut
+  }
+  return t;
+}
+
+/// Seconds into the original -> seconds into the cut audio; inside a cut -> the join.
+double originalToCut(double t, List<Cut> cuts) {
+  var removed = 0.0;
+  for (final (a, b) in cuts) {
+    if (t <= a) break;
+    removed += min(t, b) - a;
+  }
+  return t - removed;
+}
+
+/// A flagged section: Studio's `cut_suggestions` entry, the app's own fallback, or a dismissal.
+/// [kind] is `speech` or `silence`; [confidence] is null when unknown (the app's fallback flags).
+typedef Flag = ({String kind, double start, double end, double? confidence});
+
+/// A flag from a JSON map, or null when it isn't one.
+Flag? flagFrom(Object? m) {
+  if (m is! Map) return null;
+  final (k, a, b, c) = (m['kind'], m['start'], m['end'], m['confidence']);
+  if (k is! String || a is! num || b is! num || b <= a) return null;
+  return (kind: k, start: a.toDouble(), end: b.toDouble(), confidence: c is num ? c.toDouble() : null);
+}
+
+/// True when [a] and [b] overlap by at least half of the shorter one (docs/stage-manager-plan.md WP-E:
+/// Studio's re-runs can shift a boundary by a rounding step, so exact matching would resurface flags).
+bool overlapsHalf(double a0, double a1, double b0, double b1) =>
+    min(a1, b1) - max(a0, b0) >= 0.5 * min(a1 - a0, b1 - b0);
+
+/// [flags] that still need Ryan: not already a cut (accepted) and not dismissed (same kind).
+List<Flag> pendingFlags(List<Flag> flags, List<Cut> cuts, List<Flag> dismissed) => [
+      for (final f in flags)
+        if (!cuts.any((c) => overlapsHalf(f.start, f.end, c.$1, c.$2)) &&
+            !dismissed.any((d) => d.kind == f.kind && overlapsHalf(f.start, f.end, d.start, d.end)))
+          f,
+    ];
+
+/// Library filter "Needs trim review": Studio flagged sections Ryan hasn't accepted or dismissed.
+// ponytail: the app's own fallback flags need the waveform, so they only show in the trimmer, not here.
+bool needsTrimReview(Song s) => pendingFlags(s.suggestions ?? const [], s.cuts, s.dismissed).isNotEmpty;
 
 /// Track length from the FLAC STREAMINFO block (sample rate + total samples). No decoding.
 /// Null for a missing, non-FLAC or unknown-length file.
