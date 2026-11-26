@@ -150,6 +150,7 @@ Karaoke/
 - Instant search across title and artist. Filters for language, status and tag. Sort by any column.
 - One-click preview: play 15s of the rendered backing track.
 - Actions: open song, add to setlist (multi-select).
+- **Clicking a song expands it in place (accordion), never opens stage (Ryan, 2026-11-26).** It shows key/tempo/BPM/duration, editable **notes** and **tags** (free-form with autocomplete, e.g. genre and occasion: Goan, Wedding, Slow dance), and which setlists include the song (with gig key and note). Stage opens only from the mic button or Start stage. Tag filter + search by tag.
 
 ### 5.2 Song editor
 - **Settings:** key shift stepper (shows the resulting key), tempo slider, backing-vocals and guide-vocal level sliders, preview transport. Changing key or tempo shows a "rendering…" state until the cached file is ready (rendering takes seconds to minutes; the UI must not block).
