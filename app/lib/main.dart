@@ -13,6 +13,7 @@ import 'render.dart';
 import 'setlist.dart';
 import 'setlists_screen.dart';
 import 'song_details.dart';
+import 'song_panel.dart';
 import 'stage.dart';
 import 'theme.dart';
 
@@ -49,6 +50,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Object? _status; // null = all, a SongStatus, or _needsName
   static const _needsName = 'needs-name';
   bool _setlists = false; // sidebar page: Library or Setlists
+  String? _showSetlist; // the setlist the Setlists page opens on (from a panel's "In setlists")
+  String? _open; // id of the song whose detail panel is open; one at a time
+  String? _tag; // tag filter, null = all
+  Map<String, List<Membership>> _inSetlists = {};
 
   @override
   void initState() {
@@ -66,15 +71,30 @@ class _LibraryScreenState extends State<LibraryScreen> {
     super.dispose();
   }
 
-  void _reload() => setState(() => _songs = loadLibrary(widget.root));
+  void _reload() => setState(() {
+        _songs = loadLibrary(widget.root);
+        _inSetlists = setlistMembership(listSetlists(widget.root));
+      });
 
   List<Song> get _shown {
     final q = _search.text.toLowerCase();
+    final tag = _tag?.toLowerCase();
     return _songs
-        .where((s) => q.isEmpty || '${s.title} ${s.artist}'.toLowerCase().contains(q))
+        .where((s) => q.isEmpty || '${s.title} ${s.artist} ${s.tags.join(' ')}'.toLowerCase().contains(q))
         .where((s) => _language == 'All' || s.language.toLowerCase() == _language.toLowerCase())
         .where((s) => _status == null || (_status == _needsName ? s.needsName : s.status == _status))
+        .where((s) => tag == null || s.tags.any((t) => t.toLowerCase() == tag))
         .toList();
+  }
+
+  void _toggle(Song s) => setState(() => _open = _open == s.id ? null : s.id);
+
+  void _openSetlist(String id) {
+    _preview.stop();
+    setState(() {
+      _showSetlist = id;
+      _setlists = true;
+    });
   }
 
   /// Song details; "Save & next unnamed" walks on through every song that still needs a name.
@@ -133,24 +153,31 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final tags = tagCounts(_songs);
+    if (_tag != null && !tags.containsKey(_tag)) _tag = null; // its last song lost the tag
     final shown = _shown;
     return CallbackShortcuts(
-      // Only on Library, so '/' still types in the setlist note fields.
-      bindings: {if (!_setlists) const SingleActivator(LogicalKeyboardKey.slash): _searchFocus.requestFocus},
+      // Only on Library, so '/' still types in the setlist note fields; and not while a song panel is
+      // open, so it types in the panel's notes and tags.
+      // ponytail: '/' doesn't jump to search while a panel is open; Esc closes the panel first.
+      bindings: {
+        if (!_setlists && !shown.any((s) => s.id == _open))
+          const SingleActivator(LogicalKeyboardKey.slash): _searchFocus.requestFocus,
+      },
       child: Scaffold(
         body: Row(children: [
           _sidebar(),
           Expanded(
-            child: _setlists ? SetlistsScreen(root: widget.root, songs: _songs) : Padding(
+            child: _setlists ? SetlistsScreen(root: widget.root, songs: _songs, select: _showSetlist) : Padding(
               padding: const EdgeInsets.fromLTRB(32, 32, 32, 16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                _toolbar(),
+                _toolbar(tags),
                 const SizedBox(height: 16),
                 _readiness(),
                 const SizedBox(height: 16),
-                Expanded(child: _songs.isEmpty ? _empty() : _table(shown)),
+                Expanded(child: _songs.isEmpty ? _empty() : _table(shown, tags.keys.toList())),
                 const SizedBox(height: 12),
-                Text('/ search  •  ↑ ↓ / Tab move  •  Enter open in stage  •  E song details  •  Showing ${shown.length} of ${_songs.length}',
+                Text('/ search  •  ↑ ↓ / Tab move  •  Enter show details  •  Esc close  •  E edit details  •  Mic = stage  •  Showing ${shown.length} of ${_songs.length}',
                     style: const TextStyle(color: K.muted, fontSize: 12)),
               ]),
             ),
@@ -171,11 +198,20 @@ class _LibraryScreenState extends State<LibraryScreen> {
           Text('Offline  •  ${widget.root.path}',
               style: const TextStyle(color: K.muted, fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 28),
-          _nav(Icons.library_music_outlined, 'Library', !_setlists, () => setState(() => _setlists = false)),
+          _nav(Icons.library_music_outlined, 'Library', !_setlists, () {
+            setState(() => _setlists = false);
+            // After this frame: the Setlists page saves its pending edit as it goes away.
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) setState(() => _inSetlists = setlistMembership(listSetlists(widget.root)));
+            });
+          }),
           const SizedBox(height: 4),
           _nav(Icons.queue_music, 'Setlists', _setlists, () {
             _preview.stop(); // so a preview can't play over a stage launched from Setlists
-            setState(() => _setlists = true);
+            setState(() {
+              _showSetlist = null;
+              _setlists = true;
+            });
           }),
           const Spacer(),
           // Stage is an action, not a page: one solid button so it never competes with the nav.
@@ -208,7 +244,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         ),
       );
 
-  Widget _toolbar() {
+  Widget _toolbar(Map<String, int> tags) {
     final languages = {'All', ..._songs.map((s) => s.language).where((l) => l.isNotEmpty)};
     return Row(children: [
       Expanded(
@@ -216,7 +252,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           controller: _search,
           focusNode: _searchFocus,
           decoration: const InputDecoration(
-            hintText: 'Search title or artist   ( / )',
+            hintText: 'Search title, artist or tag   ( / )',
             prefixIcon: Icon(Icons.search, color: K.muted),
           ),
         ),
@@ -231,21 +267,29 @@ class _LibraryScreenState extends State<LibraryScreen> {
         _needsName: 'Needs name (${_songs.where((s) => s.needsName).length})',
       }, (v) => setState(() => _status = v)),
       const SizedBox(width: 12),
+      _dropdown<String?>(_tag, {null: 'Tag: All', for (final e in tags.entries) e.key: '${e.key} (${e.value})'},
+          (v) => setState(() => _tag = v), width: 180),
+      const SizedBox(width: 12),
       IconButton(
           tooltip: 'Rescan library folder', onPressed: _reload, icon: const Icon(Icons.refresh, color: K.muted)),
     ]);
   }
 
-  Widget _dropdown<T>(T value, Map<T, String> items, ValueChanged<T?> onChanged) => Container(
+  Widget _dropdown<T>(T value, Map<T, String> items, ValueChanged<T?> onChanged, {double? width}) => Container(
         height: 46,
+        width: width, // fixed (with ellipsis) for free-form text like tags
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
             color: K.surface1, border: Border.all(color: K.border), borderRadius: BorderRadius.circular(4)),
         child: DropdownButtonHideUnderline(
           child: DropdownButton<T>(
             value: value,
+            isExpanded: width != null,
             dropdownColor: K.surface2,
-            items: [for (final e in items.entries) DropdownMenuItem(value: e.key, child: Text(e.value))],
+            items: [
+              for (final e in items.entries)
+                DropdownMenuItem(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis)),
+            ],
             onChanged: onChanged,
           ),
         ),
@@ -283,7 +327,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   static const _cols = [4, 3, 3, 2, 1, 2, 3]; // title, artist, language, key, bpm, duration, status (flex)
 
-  Widget _table(List<Song> songs) => Container(
+  Widget _table(List<Song> songs, List<String> allTags) => Container(
         decoration: BoxDecoration(color: K.surface1, borderRadius: BorderRadius.circular(8)),
         clipBehavior: Clip.antiAlias,
         child: Column(children: [
@@ -294,19 +338,19 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 : ListView.separated(
                     itemCount: songs.length,
                     separatorBuilder: (_, _) => const Divider(height: 1, color: K.divider),
-                    itemBuilder: (_, i) => _songRow(songs[i]),
+                    itemBuilder: (_, i) => _songRow(songs[i], allTags),
                   ),
           ),
         ]),
       );
 
-  Widget _row(List<Object> cells, {bool header = false, List<Widget> actions = const []}) {
+  Widget _row(List<Object> cells, {bool header = false, bool selected = false, List<Widget> actions = const []}) {
     final style = header
         ? const TextStyle(color: K.muted, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 1)
         : const TextStyle(fontSize: 14);
     return Container(
       constraints: const BoxConstraints(minHeight: 52),
-      color: header ? K.surface2 : null,
+      color: header || selected ? K.surface2 : null,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(children: [
         for (final (i, c) in cells.indexed)
@@ -328,13 +372,18 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  Widget _songRow(Song s) {
+  Widget _songRow(Song s, List<String> allTags) {
     final playable = s.playable;
     final hasJson = s.json.isNotEmpty; // no song.json yet = Studio still processing: nothing to edit
-    return CallbackShortcuts(
-      bindings: {if (hasJson) const SingleActivator(LogicalKeyboardKey.keyE): () => _details(s)},
+    final open = _open == s.id;
+    // The panel sits outside the row's shortcuts, so E still types in its fields.
+    final row = CallbackShortcuts(
+      bindings: {
+        if (hasJson) const SingleActivator(LogicalKeyboardKey.keyE): () => _details(s),
+        if (open) const SingleActivator(LogicalKeyboardKey.escape): () => _toggle(s),
+      },
       child: InkWell(
-        onTap: playable ? () => _stage(s) : null,
+        onTap: () => _toggle(s), // Enter too. Stage opens only from the mic button and Start stage.
         hoverColor: K.surface2,
         focusColor: K.surface2,
         child: _row([
@@ -365,9 +414,25 @@ class _LibraryScreenState extends State<LibraryScreen> {
             IconButton(
                 tooltip: 'Open in stage', onPressed: () => _stage(s), icon: const Icon(Icons.mic_external_on)),
           ],
-        ]),
+        ], selected: open),
       ),
     );
+    if (!open) return KeyedSubtree(key: ValueKey(s.id), child: row);
+    return Column(key: ValueKey(s.id), mainAxisSize: MainAxisSize.min, children: [
+      row,
+      SongPanel(
+        song: s,
+        allTags: allTags,
+        setlists: _inSetlists[s.id] ?? const [],
+        preview: _preview,
+        onTagsChanged: () => setState(() {}),
+        onClose: () => _toggle(s),
+        onDetails: () => _details(s),
+        onEdit: () => _edit(s),
+        onStage: () => _stage(s),
+        onOpenSetlist: _openSetlist,
+      ),
+    ]);
   }
 
   Widget _empty() => Center(
