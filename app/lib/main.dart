@@ -7,6 +7,9 @@ import 'package:window_manager/window_manager.dart';
 
 import 'editor.dart';
 import 'library.dart';
+import 'preshow.dart';
+import 'render.dart';
+import 'setlist.dart';
 import 'setlists_screen.dart';
 import 'song_details.dart';
 import 'stage.dart';
@@ -82,6 +85,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       await _preview.stop();
       if (!mounted) return;
       setState(() {}); // saveSongFields updated the song in place: no rescan, no flicker
+      if (how != null) _render(cur);
       if (how != DetailsResult.savedNext) return;
       final skipped = cur.needsName; // saved without a name (Ryan didn't know it yet)
       cur = nextUnnamed(_songs, cur);
@@ -92,10 +96,25 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
   }
 
+  /// Queues the render for [s]'s saved key/tempo in the background (nothing if cached or not needed).
+  /// The row's chip shows progress; the dialog may already be closed.
+  void _render(Song s) {
+    final title = s.title;
+    renderQueue.add(s, s.keyShift, s.tempo).then((f) {
+      if (f == null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not render "$title". It plays at the original key and tempo.')));
+      }
+    });
+  }
+
   Future<void> _stage(Song? from) async {
     final queue = _shown.where((s) => s.playable).toList();
     if (queue.isEmpty) return;
     await _preview.stop();
+    if (!mounted) return;
+    final songs = {for (final s in queue) s.id: s};
+    if (!await preShowCheck(context, missingRenders([for (final s in queue) SetItem.song(s.id)], songs))) return;
     if (!mounted) return;
     await Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => StageScreen.queue(queue, start: from == null ? 0 : queue.indexOf(from).clamp(0, queue.length)),
@@ -329,7 +348,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           s.key.isEmpty ? '—' : s.key,
           s.bpm?.round() ?? '—',
           mss(s.playedDuration),
-          StatusChip(s.status),
+          Row(mainAxisSize: MainAxisSize.min, children: [StatusChip(s.status), RenderChip(s)]),
         ], actions: [
           if (hasJson)
             IconButton(tooltip: 'Song details  (E)', onPressed: () => _details(s), icon: const Icon(Icons.edit)),
@@ -358,6 +377,31 @@ class _LibraryScreenState extends State<LibraryScreen> {
           SelectableText('Copy processed song folders from Studio into\n${widget.root.path}${Platform.pathSeparator}library',
               textAlign: TextAlign.center, style: const TextStyle(color: K.muted)),
         ]),
+      );
+}
+
+/// "Rendering 42 %" while the render for [song]'s own key/tempo is queued or running; nothing otherwise.
+class RenderChip extends StatelessWidget {
+  final Song song;
+  const RenderChip(this.song, {super.key});
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder(
+        valueListenable: renderQueue.jobs,
+        builder: (_, jobs, _) {
+          final progress = jobs[RenderQueue.keyOf(song, song.keyShift, song.tempo)];
+          if (progress == null) return const SizedBox.shrink();
+          return ValueListenableBuilder(
+            valueListenable: progress,
+            builder: (_, p, _) => Container(
+              margin: const EdgeInsets.only(left: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(color: K.surface2, borderRadius: BorderRadius.circular(12)),
+              child: Text('Rendering ${(p * 100).round()} %',
+                  style: const TextStyle(color: K.accent, fontSize: 12, fontFeatures: K.tabular)),
+            ),
+          );
+        },
       );
 }
 

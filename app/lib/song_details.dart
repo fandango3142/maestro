@@ -1,24 +1,27 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'library.dart';
+import 'render.dart';
 import 'theme.dart';
 
 /// 15 s of a song's backing track from 0:30, one song at a time. [playing] = the song id, or null.
+/// Plays [Song.audio] (its render when ready), or [file] when given.
 class Preview {
   final _player = AudioPlayer();
   final playing = ValueNotifier<String?>(null);
   Timer? _timer;
 
-  Future<void> toggle(Song s) async {
+  Future<void> toggle(Song s, {File? file}) async {
     final was = playing.value;
     await stop();
     if (was == s.id) return;
     playing.value = s.id;
-    await _player.play(DeviceFileSource(s.audio.path), position: const Duration(seconds: 30));
+    await _player.play(DeviceFileSource((file ?? s.audio).path), position: const Duration(seconds: 30));
     _timer = Timer(const Duration(seconds: 15), stop);
   }
 
@@ -49,7 +52,8 @@ String formatBpm(double? v) {
   return s.endsWith('.0') ? s.substring(0, s.length - 2) : s;
 }
 
-/// Song details (docs/stage-manager-plan.md WP-B): fix the name, artist, language and BPM.
+/// Song details (docs/stage-manager-plan.md WP-B, C2): fix the name, artist, language and BPM; set the
+/// key and tempo. Saving a new key/tempo queues its render (the caller does that, see main.dart).
 /// Enter saves, Esc cancels, Ctrl+Enter saves and moves to the next song that still needs a name.
 class SongDetailsDialog extends StatefulWidget {
   final Song song;
@@ -70,6 +74,9 @@ class _SongDetailsDialogState extends State<SongDetailsDialog> {
   late final _bpm = TextEditingController(text: formatBpm(_s.bpm));
   late final String? _origLang = _s.language.isEmpty ? null : _s.language.toLowerCase();
   late String? _lang = _origLang;
+  // SPEC §4 ranges; the engine takes more, the UI doesn't. Nothing renders until Save.
+  late int _shift = _s.keyShift.clamp(-6, 6);
+  late double _tempo = (_s.tempo.clamp(0.8, 1.2) * 100).round() / 100;
   bool _saving = false;
   String? _error;
 
@@ -104,6 +111,8 @@ class _SongDetailsDialogState extends State<SongDetailsDialog> {
       if (artist != _s.artist) 'artist': artist,
       if (_lang != _origLang) 'language': _lang,
       if (bpm != (_s.json['bpm_override'] as num?)?.toDouble()) 'bpm_override': bpm,
+      if (_shift != _s.keyShift) 'key_shift': _shift,
+      if ((_tempo - _s.tempo).abs() > 0.001) 'tempo': _tempo,
     };
   }
 
@@ -130,6 +139,84 @@ class _SongDetailsDialogState extends State<SongDetailsDialog> {
     final v = double.tryParse(_bpm.text.trim()) ?? _s.detectedBpm;
     if (v != null) _bpm.text = formatBpm(v * by);
   }
+
+  Widget _keyRow(Song s) {
+    final sign = _shift > 0 ? '+' : '';
+    final key = s.originalKey.isEmpty || _shift == 0 ? s.originalKey : '${s.originalKey} → ${shiftKey(s.originalKey, _shift)}';
+    return Row(children: [
+      const SizedBox(width: 64, child: Text('Key', style: TextStyle(color: K.muted))),
+      IconButton(
+        tooltip: 'Key down',
+        onPressed: _shift > -6 ? () => setState(() => _shift--) : null,
+        icon: const Icon(Icons.remove),
+      ),
+      SizedBox(
+        width: 48,
+        child: Text('$sign$_shift', textAlign: TextAlign.center, style: const TextStyle(fontFeatures: K.tabular)),
+      ),
+      IconButton(
+        tooltip: 'Key up',
+        onPressed: _shift < 6 ? () => setState(() => _shift++) : null,
+        icon: const Icon(Icons.add),
+      ),
+      const SizedBox(width: 12),
+      Text(key, style: const TextStyle(fontWeight: FontWeight.w600)),
+    ]);
+  }
+
+  Widget _tempoRow(Song s) {
+    final bpm = double.tryParse(_bpm.text.trim()) ?? s.bpm;
+    return Row(children: [
+      const SizedBox(width: 64, child: Text('Tempo', style: TextStyle(color: K.muted))),
+      Expanded(
+        child: Slider(
+          value: _tempo,
+          min: 0.8,
+          max: 1.2,
+          divisions: 40, // 0.01 steps
+          onChanged: (v) => setState(() => _tempo = (v * 100).round() / 100),
+        ),
+      ),
+      SizedBox(
+        width: 190,
+        child: Text(
+          [
+            '${_tempo.toStringAsFixed(2)}x',
+            if (s.duration != null) mss(s.playedDurationAt(_tempo)),
+            if (bpm != null) '${formatBpm(bpm * _tempo)} BPM',
+          ].join(' · '),
+          style: const TextStyle(fontFeatures: K.tabular),
+        ),
+      ),
+    ]);
+  }
+
+  /// Plays the render for the key/tempo shown when it's on disk, else the original with a note.
+  Widget _preview(Song s) => ValueListenableBuilder(
+        valueListenable: renderQueue.jobs, // a finished render switches the preview over
+        builder: (_, jobs, _) {
+          final play = playbackFor(s, _shift, _tempo);
+          final note = !play.fallback
+              ? null
+              : jobs.containsKey(RenderQueue.keyOf(s, _shift, _tempo))
+                  ? "Rendering… the preview plays the original until it's ready."
+                  : 'Not rendered yet: Save renders it. The preview plays the original.';
+          return Row(children: [
+            ValueListenableBuilder(
+              valueListenable: widget.preview.playing,
+              builder: (_, playing, _) => OutlinedButton.icon(
+                onPressed: s.playable ? () => widget.preview.toggle(s, file: play.file) : null,
+                icon: Icon(playing == s.id ? Icons.stop : Icons.play_arrow),
+                label: const Text('Play 15 s'),
+              ),
+            ),
+            if (note != null) ...[
+              const SizedBox(width: 12),
+              Expanded(child: Text(note, style: const TextStyle(color: K.muted, fontSize: 13))),
+            ],
+          ]);
+        },
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -196,15 +283,11 @@ class _SongDetailsDialogState extends State<SongDetailsDialog> {
               if (_override != null && s.detectedBpm != null)
                 TextButton(onPressed: () => _bpm.text = formatBpm(s.detectedBpm), child: const Text('Reset')),
             ]),
-            const SizedBox(height: 16),
-            ValueListenableBuilder(
-              valueListenable: widget.preview.playing,
-              builder: (_, playing, _) => OutlinedButton.icon(
-                onPressed: s.playable ? () => widget.preview.toggle(s) : null,
-                icon: Icon(playing == s.id ? Icons.stop : Icons.play_arrow),
-                label: const Text('Play 15 s'),
-              ),
-            ),
+            const SizedBox(height: 12),
+            _keyRow(s),
+            _tempoRow(s),
+            const SizedBox(height: 8),
+            _preview(s),
             if (_error != null) ...[
               const SizedBox(height: 12),
               Text(_error!, style: TextStyle(color: K.status(SongStatus.needsLyrics))),

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:isolate';
 
 import 'package:ffi/ffi.dart';
+import 'package:flutter/foundation.dart';
 
 import 'library.dart';
 
@@ -46,6 +47,8 @@ Future<File> ensureRender(Song s, {int? keyShift, double? tempo, void Function(d
   final source = File('${s.dir.path}/instrumental.flac');
   final name = renderFileName(shift, t);
   if (name == null) return Future.value(source);
+  // A song deleted (or moved) before its job starts: fail here, before renderFile re-creates its folder.
+  if (!source.existsSync()) return Future.error(RenderException(-2, source.path));
   return renderFile(source, File('${s.dir.path}/render/$name'), shift, t, onProgress: onProgress);
 }
 
@@ -152,3 +155,68 @@ int _mixSync(String lib, String aPath, String bPath, String outPath, int progres
     malloc.free(o);
   }
 }
+
+/// Background renders, strictly one at a time (each holds ~170 MB while it runs). New jobs wait while
+/// stage mode is on ([pause]/[resume]); a job already running can't be stopped and finishes.
+class RenderQueue {
+  /// Output path (lower case) -> progress 0..1 of each render queued or running. A new map is set on
+  /// every add/finish, so listeners hear jobs come and go; each progress is its own notifier.
+  final jobs = ValueNotifier<Map<String, ValueNotifier<double>>>(const {});
+
+  /// The renderer; tests swap in a fake.
+  Future<File> Function(Song s, int shift, double tempo, void Function(double) onProgress) run =
+      (s, shift, tempo, onProgress) => ensureRender(s, keyShift: shift, tempo: tempo, onProgress: onProgress);
+
+  final _futures = <String, Future<File?>>{};
+  Future<void> _tail = Future.value();
+  Completer<void>? _paused;
+
+  /// The cache key of [s] at [shift]/[tempo], or null when that needs no render.
+  static String? keyOf(Song s, int shift, double tempo) {
+    final name = renderFileName(shift, tempo);
+    return name == null ? null : File('${s.dir.path}/render/$name').absolute.path.toLowerCase();
+  }
+
+  /// Queues a render of [s] at [shift]/[tempo] behind any others. Already on disk, already queued or
+  /// no render needed: no new job. Completes with the file, or null if the render failed (never throws).
+  Future<File?> add(Song s, int shift, double tempo) {
+    final key = keyOf(s, shift, tempo);
+    if (key == null) return Future.value(s.original);
+    final queued = _futures[key];
+    if (queued != null) return queued;
+    final out = File('${s.dir.path}/render/${renderFileName(shift, tempo)}');
+    if (out.existsSync()) return Future.value(out);
+    final progress = ValueNotifier(0.0);
+    jobs.value = {...jobs.value, key: progress};
+    final f = _futures[key] = _tail.then((_) => _one(s, shift, tempo, progress)).whenComplete(() {
+      _futures.remove(key);
+      jobs.value = Map.of(jobs.value)..remove(key);
+    });
+    _tail = f;
+    return f;
+  }
+
+  Future<File?> _one(Song s, int shift, double tempo, ValueNotifier<double> progress) async {
+    while (_paused != null) {
+      await _paused!.future;
+    }
+    try {
+      return await run(s, shift, tempo, (v) => progress.value = v);
+    } on Object catch (e) {
+      debugPrint('Render failed: $e');
+      return null;
+    }
+  }
+
+  /// Stage mode is on: start no new render until [resume].
+  void pause() => _paused ??= Completer<void>();
+
+  void resume() {
+    _paused?.complete();
+    _paused = null;
+  }
+}
+
+/// The app's one render queue (Library chip, Song details, pre-show check, stage pause).
+/// Not final only so a widget test can give each test a fresh queue inside its own zone.
+RenderQueue renderQueue = RenderQueue();

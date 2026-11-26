@@ -7,6 +7,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'library.dart';
 import 'lrc.dart';
+import 'render.dart';
 import 'setlist.dart';
 import 'theme.dart';
 
@@ -43,13 +44,21 @@ class _StageScreenState extends State<StageScreen> {
 
   SetItem get _item => widget.items[_index];
   Song get _song => widget.songs[_item.songId]!; // only valid when !_item.isBreak
-  int get _keyShift => _item.keyShift ?? _song.keyShift; // ponytail: shown only; WP-C plays the override
-  late final _plan = planTimes(widget.items, (id) => widget.songs[id]?.playedDuration, Duration.zero, widget.changeover);
+  int _shiftOf(SetItem i) => i.keyShift ?? widget.songs[i.songId]!.keyShift; // gig override, else the song's
+  late Playback _play; // what the player has loaded (set in _cue)
+  // Lengths of what will really play: a song falling back to its original runs at 1.0x.
+  // ponytail: one song twice in a set with different gig keys, only one rendered, uses the first's length.
+  late final _plan = planTimes(widget.items, (id) {
+    final s = widget.songs[id];
+    if (s == null) return null;
+    return s.playedDurationAt(playbackFor(s, _shiftOf(widget.items.firstWhere((i) => i.songId == id))).tempo);
+  }, Duration.zero, widget.changeover);
 
   @override
   void initState() {
     super.initState();
     windowManager.setFullScreen(true);
+    renderQueue.pause(); // no new render starts during the show
     _player.setReleaseMode(ReleaseMode.stop); // keep the file loaded so restart works after the end
     _player.onPlayerComplete.listen((_) {
       setState(() => _playing = false); // last song: stay on it, paused
@@ -61,6 +70,7 @@ class _StageScreenState extends State<StageScreen> {
       if (mounted && p != null && p != _pos) setState(() => _pos = p);
       if (mounted && _item.isBreak) setState(() {}); // tick the break countdown
     });
+    if (!_item.isBreak) _play = playbackFor(_song, _shiftOf(_item)); // before the first build
     _cue(_index);
     _wake();
   }
@@ -73,6 +83,7 @@ class _StageScreenState extends State<StageScreen> {
       t.cancel();
     }
     _player.dispose();
+    renderQueue.resume();
     windowManager.setFullScreen(false);
     super.dispose();
   }
@@ -87,9 +98,10 @@ class _StageScreenState extends State<StageScreen> {
       _playing = false;
       _breakEnds = _item.isBreak ? DateTime.now().add(Duration(minutes: _item.minutes)) : null;
       if (_item.isBreak) _length = Duration(minutes: _item.minutes);
+      if (!_item.isBreak) _play = playbackFor(_song, _shiftOf(_item));
     });
     if (_item.isBreak) return; // audio stays stopped through a break
-    await _player.setSource(DeviceFileSource(_song.audio.path));
+    await _player.setSource(DeviceFileSource(_play.file.path));
     final d = await _player.getDuration();
     if (mounted) setState(() => _length = d ?? Duration.zero);
   }
@@ -199,7 +211,8 @@ class _StageScreenState extends State<StageScreen> {
         Text('No synced lyrics yet', style: style.copyWith(fontSize: big * 0.4, color: K.muted)),
       ]);
     }
-    final pos = toOriginal(_pos, _song); // lyric times are stored against the original audio
+    // Lyric times are stored against the original audio; map with the tempo of the file playing.
+    final pos = toOriginal(_pos, _song, playingTempo: _play.tempo);
     final cur = currentLine(lines, pos);
     final next = cur + 1 < lines.length ? lines[cur + 1] : null;
     final since = cur < 0 ? Duration.zero : lines[cur].time!;
@@ -246,13 +259,15 @@ class _StageScreenState extends State<StageScreen> {
           Icon(brk ? Icons.coffee : (_playing ? Icons.graphic_eq : Icons.pause_circle_outline),
               color: K.accent, size: 20),
           const SizedBox(width: 10),
-          Text(
-              brk
-                  ? _item.label
-                  : '${_song.title}  •  ${shiftKey(_song.originalKey, _keyShift)}'
-                      '  •  ${_song.tempo.toStringAsFixed(2)}x',
-              style: dim.copyWith(color: K.text)),
-          const Spacer(),
+          Expanded(
+            child: Text(
+                brk
+                    ? _item.label
+                    : '${_song.title}  •  ${shiftKey(_song.originalKey, _play.shift)}'
+                        '  •  ${_play.tempo.toStringAsFixed(2)}x${_play.fallback ? '  •  original (not rendered)' : ''}',
+                overflow: TextOverflow.ellipsis,
+                style: dim.copyWith(color: K.text)),
+          ),
           Text('-${mss(left.isNegative ? Duration.zero : left)}',
               style: const TextStyle(color: K.accent, fontSize: 16, fontWeight: FontWeight.w600, fontFeatures: K.tabular)),
           const SizedBox(width: 16),

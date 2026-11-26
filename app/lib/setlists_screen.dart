@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'library.dart';
+import 'preshow.dart';
 import 'setlist.dart';
 import 'stage.dart';
 import 'theme.dart';
@@ -211,6 +212,7 @@ class _SetlistsScreenState extends State<SetlistsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No playable songs in this setlist')));
       return;
     }
+    if (!await preShowCheck(context, missingRenders(items, byId)) || !mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => StageScreen(

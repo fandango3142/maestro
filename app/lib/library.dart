@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'lrc.dart';
+import 'render.dart';
 
 enum SongStatus { processing, needsLyrics, needsSync, ready }
 
@@ -57,8 +58,11 @@ class Song {
   /// Length of the original backing track, read once per load from the FLAC header.
   late final Duration? duration = flacDuration(File('${dir.path}/instrumental.flac'));
 
-  /// What actually plays: (original − cuts) / tempo. Null if the length is unknown.
-  Duration? get playedDuration {
+  /// What plays at the song's own tempo: (original − cuts) / tempo. Null if the length is unknown.
+  Duration? get playedDuration => playedDurationAt(tempo);
+
+  /// (original − cuts) / [tempo]: the length of a file that plays at [tempo].
+  Duration? playedDurationAt(double tempo) {
     final d = duration;
     if (d == null) return null;
     final cut = (json['cuts'] as List? ?? const [])
@@ -69,10 +73,13 @@ class Song {
     return Duration(microseconds: (secs * 1e6).round());
   }
 
-  bool get playable => status != SongStatus.processing && audio.existsSync();
+  bool get playable => status != SongStatus.processing && original.existsSync();
 
-  // ponytail: plays the raw instrumental until the key/tempo render step (Studio step 5) exists.
-  File get audio => File('${dir.path}/instrumental.flac');
+  /// Studio's backing track at the original key and tempo. Lyric times are stored against this file.
+  File get original => File('${dir.path}/instrumental.flac');
+
+  /// The backing track at the song's own key/tempo: its render when that exists, else [original].
+  File get audio => playbackFor(this, keyShift).file;
 
   SongStatus get status {
     if (json.isEmpty) return SongStatus.processing;
@@ -146,9 +153,25 @@ Song? nextUnnamed(List<Song> songs, Song after) {
   return null;
 }
 
+/// A file to play, the tempo and key shift it really plays at, and whether it stands in for a missing render.
+typedef Playback = ({File file, double tempo, int shift, bool fallback});
+
+/// What plays for [s] at [shift] semitones and [tempo] (default: the song's tempo): the render when its
+/// file exists, else the original. [tempo] is then the speed the chosen file really plays at (1.0 for
+/// the original), and [fallback] says a render was wanted but isn't on disk yet. Lyric timing and
+/// lengths must use this [tempo], or a song playing the original would drift.
+Playback playbackFor(Song s, int shift, [double? tempo]) {
+  final t = ((tempo ?? s.tempo) * 100).round() / 100; // same rounding as the render's file name
+  final name = renderFileName(shift, t);
+  final render = name == null ? null : File('${s.dir.path}/render/$name');
+  if (render != null && render.existsSync()) return (file: render, tempo: t, shift: shift, fallback: false);
+  return (file: s.original, tempo: 1.0, shift: 0, fallback: render != null);
+}
+
 /// Maps a playback position to the original-audio position lyrics are stored against.
+/// [playingTempo] is the tempo of the file actually playing (see [playbackFor]); default the song's.
 // ponytail: cuts slot in here once the cuts editor exists; today it's tempo only.
-Duration toOriginal(Duration playbackPos, Song s) => playbackPos * s.tempo;
+Duration toOriginal(Duration playbackPos, Song s, {double? playingTempo}) => playbackPos * (playingTempo ?? s.tempo);
 
 /// Track length from the FLAC STREAMINFO block (sample rate + total samples). No decoding.
 /// Null for a missing, non-FLAC or unknown-length file.

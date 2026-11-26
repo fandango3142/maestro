@@ -76,7 +76,7 @@ class _EditorScreenState extends State<EditorScreen> {
   /// Plays the instrumental at once, then swaps to the guide mix (the song with vocals, so you can
   /// find your place) as soon as it's made, at the same position and play state. One player, so no drift.
   Future<void> _startAudio() async {
-    await _load(widget.song.audio);
+    await _load(widget.song.original); // lyric times are against the original, never a render
     File? mix;
     try {
       mix = await ensureGuideMix(widget.song);
