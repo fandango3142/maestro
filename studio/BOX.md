@@ -118,6 +118,7 @@ The Windows laptop's "Maestro Sync" task (`studio/sync.ps1`) runs every 2 minute
 | Date | Command / change | Why |
 |---|---|---|
 | 2026-11-26 | `systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=1G` on all bench jobs | An AudioSR test used all 8 GB, the box swapped and froze, and it needed a power-cycle |
+| 2026-11-26 | Revert to working mode: `systemctl --user enable openclaw-gateway` (done). **Pending Ryan at next boot:** text login, then `sudo sh ~/revert-box.sh`. It sets graphical.target, turns Bluetooth on, restores `unless-stopped` and starts the odysseus containers (port 7000 app, chromadb, searxng, ntfy), then starts the desktop. zram is kept | Ryan wants the box back to normal use |
 | 2026-11-26 | **Standing exception (Ryan: "6gb works"):** ACE-Step may run at `MemoryMax=6G -p MemorySwapMax=0`, kill-watcher on. No swap, so it gets killed rather than thrashing. Everything else keeps the 5.5 GB rule | ACE-Step gets killed after loading at 4.5G+1G |
 | 2026-11-26 | Rule: total cap (MemoryMax + MemorySwapMax) at most about 5.5 GB; no AudioSR until the RAM upgrade | AudioSR at 6.5G + 2G of swap froze the box a second time, because zram swap takes physical RAM |
 | 2026-11-26 | `systemctl --user disable --now openclaw-gateway` (undo: `enable --now`) | Stop OpenClaw to free RAM for benchmarks |
