@@ -115,6 +115,8 @@ The Windows laptop's "Maestro Sync" task (`studio/sync.ps1`) runs every 2 minute
 | Date | Command / change | Why |
 |---|---|---|
 | 2026-11-26 | `systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=1G` on all bench jobs | An AudioSR test used all 8 GB, the box swapped and froze, and it needed a power-cycle |
+| 2026-11-26 | `systemctl --user disable --now openclaw-gateway` (undo: `enable --now`) | Stop OpenClaw to free RAM for benchmarks |
+| 2026-11-26 | **Pending Ryan:** `sudo sh ~/music-bench/box-tune.sh`, then reboot. Boots headless (`multi-user.target`), stops Docker containers and sets them to `--restart=no` (old policies saved in `~/music-bench/docker-restart-policies.txt`), adds zram swap (half of RAM, zstd, priority 100), turns off Bluetooth. Undo lines are at the bottom of the script | Free RAM and stop the slow hard-drive swapping. Catch: headless means no LocalSend, and stopping Docker takes the port 7000 app offline |
 | 2026-11-26 | `echo 'ryan ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff' \| sudo tee /etc/sudoers.d/maestro-poweroff` | Shut the box down over SSH without a password (allows only that one command) |
 | 2026-11-26 | Studio unloads Ollama models before each song (`keep_alive: 0` via its API) | Ollama and the separator share the 4 GB GPU; tested, freed 1.6 GB |
 | 2026-11-26 | `run.sh` falls back to running without `systemd-inhibit` when polkit says "Access denied" | Nobody is logged in at the desktop after a boot, so inhibit was refused and Studio silently skipped its boot run |
