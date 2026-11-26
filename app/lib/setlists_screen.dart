@@ -14,7 +14,8 @@ import 'theme.dart';
 class SetlistsScreen extends StatefulWidget {
   final Directory root;
   final List<Song> songs;
-  const SetlistsScreen({super.key, required this.root, required this.songs});
+  final String? select; // setlist id to open on (from the Library's "In setlists"), else the first
+  const SetlistsScreen({super.key, required this.root, required this.songs, this.select});
 
   @override
   State<SetlistsScreen> createState() => _SetlistsScreenState();
@@ -29,7 +30,7 @@ class _SetlistsScreenState extends State<SetlistsScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    _load(select: widget.select);
   }
 
   @override

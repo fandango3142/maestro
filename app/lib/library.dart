@@ -40,6 +40,17 @@ class Song {
   double? get bpm => (json['bpm_override'] as num?)?.toDouble() ?? detectedBpm;
   double? get detectedBpm => (json['bpm'] as num?)?.toDouble();
   String get sourceFile => json['source_file'] as String? ?? '';
+  String get notes => json['notes'] is String ? json['notes'] as String : '';
+
+  /// Free-form tags (genre, occasion…): trimmed, de-duplicated ignoring case. A malformed field reads as none.
+  List<String> get tags {
+    final raw = json['tags'] is List ? json['tags'] as List : const [];
+    final seen = <String>{};
+    return [
+      for (final t in raw)
+        if (t is String && t.trim().isNotEmpty && seen.add(t.trim().toLowerCase())) t.trim(),
+    ];
+  }
 
   /// Studio's `lyrics_draft` info (source, confidence, script…), or empty.
   Map<String, dynamic> get draftInfo =>
@@ -141,6 +152,28 @@ Future<void> saveSongFields(Song s, Map<String, Object?> changes) async {
   s.json
     ..clear()
     ..addAll(map); // the Library row shows the new values without a rescan
+}
+
+/// [tags] plus [tag] (trimmed), unless it's empty or already there in any casing. A tag already used in
+/// the library ([known]) keeps that casing, so "goan" joins "Goan".
+List<String> addTag(List<String> tags, String tag, {Iterable<String> known = const []}) {
+  final t = tag.trim(), low = t.toLowerCase();
+  if (t.isEmpty || tags.any((x) => x.toLowerCase() == low)) return tags;
+  return [...tags, known.firstWhere((k) => k.toLowerCase() == low, orElse: () => t)];
+}
+
+/// Every tag in [songs] with how many songs have it, A-Z. Casing ignored; the first-seen casing is shown.
+Map<String, int> tagCounts(Iterable<Song> songs) {
+  final names = <String, String>{}, counts = <String, int>{};
+  for (final s in songs) {
+    for (final t in s.tags) {
+      final low = t.toLowerCase();
+      names.putIfAbsent(low, () => t);
+      counts[low] = (counts[low] ?? 0) + 1;
+    }
+  }
+  final keys = names.keys.toList()..sort();
+  return {for (final k in keys) names[k]!: counts[k]!};
 }
 
 /// The next song after [after] (wrapping round to the top) that still needs a name, or null.

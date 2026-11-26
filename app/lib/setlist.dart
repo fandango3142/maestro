@@ -62,6 +62,21 @@ List<Setlist> listSetlists(Directory root) {
   return out..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 }
 
+/// One appearance of a song in a setlist: [position] of [count] songs (breaks not counted).
+typedef Membership = ({Setlist list, SetItem item, int position, int count});
+
+/// Song id -> every setlist slot it fills, in one pass over [lists]. A song listed twice appears twice.
+Map<String, List<Membership>> setlistMembership(List<Setlist> lists) {
+  final out = <String, List<Membership>>{};
+  for (final l in lists) {
+    final songs = l.items.where((i) => !i.isBreak).toList();
+    for (final (n, i) in songs.indexed) {
+      (out[i.songId] ??= []).add((list: l, item: i, position: n + 1, count: songs.length));
+    }
+  }
+  return out;
+}
+
 /// "Friday Konkani & Retro" -> "friday-konkani-retro".
 String slug(String name) {
   final s = name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-').replaceAll(RegExp(r'^-+|-+$'), '');
