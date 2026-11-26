@@ -114,6 +114,21 @@ def draft_lyrics(dest: Path) -> dict | None:
             "script": "deva" if deva else "latin", "confidence": "low"}
 
 
+def unload_ollama() -> None:
+    """Ollama shares the 4 GB GPU: unload any model it holds so a separation can't run out of VRAM.
+    keep_alive=0 unloads without stopping the service (no sudo). Silent if Ollama isn't running."""
+    import urllib.request
+
+    api = "http://localhost:11434/api"
+    try:
+        for m in json.load(urllib.request.urlopen(f"{api}/ps", timeout=3))["models"]:
+            req = json.dumps({"model": m["name"], "keep_alive": 0}).encode()
+            urllib.request.urlopen(urllib.request.Request(f"{api}/generate", req), timeout=30)
+            print(f"{time.strftime('%H:%M:%S')} unloaded Ollama model {m['name']} to free the GPU")
+    except OSError:
+        pass
+
+
 def done(src: Path) -> bool:
     return (LIBRARY / slug(src.stem) / "song.json").exists()
 
@@ -123,6 +138,7 @@ def process(src: Path, keep_backing: bool) -> None:
     print(f"{time.strftime('%H:%M:%S')} split {src.name} ...")
     started = time.monotonic()
     dest.mkdir(parents=True, exist_ok=True)
+    unload_ollama()
     separate(src, dest, SEPARATION_MODEL, {"(vocals)": "vocals.flac", "(instrumental)": "instrumental.flac"})
     if keep_backing:  # on the vocal stem: "Vocals" = lead, "Instrumental" = everything else = backing
         separate(dest / "vocals.flac", dest, BACKING_MODEL,
