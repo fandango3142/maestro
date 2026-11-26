@@ -1,7 +1,9 @@
 # Maestro round trip (runs every 2 min via Task Scheduler "Maestro Sync"):
 #   1. new audio in <repo>\inbox and <repo>\inbox-backing  -> GPU box inboxes (then moved to .\sent)
 #   2. finished songs on the box (have song.json)          -> Documents\Karaoke\library (staged, then renamed in)
-$ErrorActionPreference = 'Stop'
+# 'Continue': in Windows PowerShell 5.1 any ssh/scp stderr would throw under 'Stop' (e.g. box offline);
+# we check $LASTEXITCODE instead.
+$ErrorActionPreference = 'Continue'
 $Box  = 'ryan@192.168.29.71'
 $Root = Split-Path $PSScriptRoot -Parent
 $Kar  = Join-Path $env:USERPROFILE 'Documents\Karaoke'
