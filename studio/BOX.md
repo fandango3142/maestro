@@ -42,6 +42,7 @@ You can also copy files with LocalSend, which has access to `~/karaoke`.
 | Kill a script by name | `pkill -f "[p]ython studio.py"` (the brackets stop it matching your own shell) |
 | Shut down | `sudo -n systemctl poweroff` (passwordless via `/etc/sudoers.d/maestro-poweroff`) |
 | Taskbar vanished | `xfce4-panel &` (on the box's own screen) |
+| Desktop for one session (boots headless since 2026-11-26) | `sudo systemctl start lightdm`; back to desktop for good: `sudo systemctl set-default graphical.target` |
 
 **Measured 2026-11-26** (clean fan, laptop upside down, 4-min song). CPU (i5-10300H) held at 93–95 °C throughout, and fell to about 72 °C within 30 s of the GPU going idle. GPU peaked at 87 °C. Separation took 448 s, the same as before (452 s), so nothing throttled. If it ever does, turning turbo off cuts CPU heat with little cost, because the work is GPU-bound: `echo 1 | sudo tee /sys/devices/system/cpu/intel_pstate/no_turbo` (`0` turns it back on; it resets at reboot).
 
@@ -116,7 +117,7 @@ The Windows laptop's "Maestro Sync" task (`studio/sync.ps1`) runs every 2 minute
 |---|---|---|
 | 2026-11-26 | `systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=1G` on all bench jobs | An AudioSR test used all 8 GB, the box swapped and froze, and it needed a power-cycle |
 | 2026-11-26 | `systemctl --user disable --now openclaw-gateway` (undo: `enable --now`) | Stop OpenClaw to free RAM for benchmarks |
-| 2026-11-26 | **Pending Ryan:** `sudo sh ~/music-bench/box-tune.sh`, then reboot. Boots headless (`multi-user.target`), stops Docker containers and sets them to `--restart=no` (old policies saved in `~/music-bench/docker-restart-policies.txt`), adds zram swap (half of RAM, zstd, priority 100), turns off Bluetooth. Undo lines are at the bottom of the script | Free RAM and stop the slow hard-drive swapping. Catch: headless means no LocalSend, and stopping Docker takes the port 7000 app offline |
+| 2026-11-26 | **Done 18:21** (verified: idle RAM about 1 GB, down from 2 GB; Studio's boot run worked headless): `sudo sh ~/music-bench/box-tune.sh`, then reboot. ntfy, which was a container, is also off. Boots headless (`multi-user.target`), stops Docker containers and sets them to `--restart=no` (old policies saved in `~/music-bench/docker-restart-policies.txt`), adds zram swap (half of RAM, zstd, priority 100), turns off Bluetooth. Undo lines are at the bottom of the script | Free RAM and stop the slow hard-drive swapping. Catch: headless means no LocalSend, and stopping Docker takes the port 7000 app offline |
 | 2026-11-26 | `echo 'ryan ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff' \| sudo tee /etc/sudoers.d/maestro-poweroff` | Shut the box down over SSH without a password (allows only that one command) |
 | 2026-11-26 | Studio unloads Ollama models before each song (`keep_alive: 0` via its API) | Ollama and the separator share the 4 GB GPU; tested, freed 1.6 GB |
 | 2026-11-26 | `run.sh` falls back to running without `systemd-inhibit` when polkit says "Access denied" | Nobody is logged in at the desktop after a boot, so inhibit was refused and Studio silently skipped its boot run |
