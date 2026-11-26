@@ -5,7 +5,7 @@ Source of truth for *what the app is*: `SPEC.md`. This doc is *how we build the 
 
 ## Status (2026-11-26, paused at Ryan's request)
 - Done: **WP-A** setlists, **WP-C1** render engine (approved by ear), **WP-B2** lyrics editor (plus revision: guide mix, inline edit/add while paused), and UI overflow fixes at 1280x720.
-- Resumed 2026-11-26. WP-B, WP-C2 done (bbe9410); D1 approved by Ryan 2026-11-26 (desktop_multi_window per D0 report). Building in parallel: **WP-B3** (main tree) + **WP-D1** (worktree ../Karaoke-d1). Then **WP-E**.
+- 2026-11-26: all WPs built and merged on master (B, C2, B3, D1, E; 102 tests green). Remaining: Ryan's owner field tests listed in each WP.
 - Open owner checks: hand-test the lyrics editor on Godacho Panv; run a real setlist through stage mode.
 
 ## Goal
