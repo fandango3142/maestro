@@ -7,6 +7,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'editor.dart';
 import 'library.dart';
+import 'lyrics_window.dart';
 import 'preshow.dart';
 import 'render.dart';
 import 'setlist.dart';
@@ -20,6 +21,7 @@ import 'trim.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await windowManager.ensureInitialized();
+  if (await isLyricsWindow()) return runLyricsWindow(); // stage mode's second screen (lyrics_window.dart)
   // ponytail: data folder is fixed to Documents/Karaoke until the Settings screen exists.
   final docs = await getApplicationDocumentsDirectory();
   final root = Directory('${docs.path}${Platform.pathSeparator}Karaoke');
