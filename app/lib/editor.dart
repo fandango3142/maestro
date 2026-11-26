@@ -44,6 +44,8 @@ class _EditorScreenState extends State<EditorScreen> {
   double _tapX = 0; // where the last click landed in its row (time column vs words)
   bool _ignoreBlur = false; // the field is being moved to another line, not left
   String _hearing = 'Backing track';
+  // Showing Studio's draft. Saving writes the song's real lyrics file (Song.lyricsFile), never the draft.
+  late bool _draft = widget.song.isDraft;
 
   int get _from => min(_sel, _anchor ?? _sel);
   int get _to => max(_sel, _anchor ?? _sel);
@@ -388,7 +390,7 @@ class _EditorScreenState extends State<EditorScreen> {
 
   Future<void> _save() async {
     await widget.song.lyricsFile.writeAsString(formatLrc(_lines));
-    setState(() => _dirty = false);
+    setState(() => _dirty = _draft = false);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Saved ${widget.song.lyricsFile.uri.pathSegments.last}')));
@@ -485,6 +487,7 @@ class _EditorScreenState extends State<EditorScreen> {
                     Text([s.artist, s.originalKey, if (s.bpm != null) '${s.bpm!.round()} BPM']
                         .where((x) => x.isNotEmpty).join('  •  '),
                         style: const TextStyle(color: K.muted)),
+                    if (_draft) ...[const SizedBox(height: 6), DraftBadge(s, full: true)],
                   ]),
                 ),
                 if (_dirty) const Text('Unsaved changes  ', style: TextStyle(color: K.accent)),

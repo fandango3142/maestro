@@ -89,3 +89,35 @@ class StatusChip extends StatelessWidget {
     );
   }
 }
+
+/// "Whisper draft · low": Studio's unchecked lyrics (SPEC §4 Lyrics drafts). [full] adds the raw source.
+class DraftBadge extends StatelessWidget {
+  final Song song;
+  final bool full;
+  const DraftBadge(this.song, {super.key, this.full = false});
+
+  static String label(Song s, {bool full = false}) {
+    final source = s.draftInfo['source'] as String? ?? '';
+    final confidence = s.draftInfo['confidence'] as String? ?? '';
+    final who = source.startsWith('whisper') ? 'Whisper' : (source.contains('align') ? 'Aligned' : 'Studio');
+    return [
+      '$who draft',
+      if (confidence.isNotEmpty) full ? '$confidence confidence' : confidence,
+      if (full && source.isNotEmpty) source,
+    ].join(' · ');
+  }
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+        message: label(song, full: true),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+              border: Border.all(color: K.accent.withValues(alpha: 0.5)), borderRadius: BorderRadius.circular(4)),
+          child: Text(label(song, full: full),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: K.accent, fontSize: 11, fontWeight: FontWeight.w500)),
+        ),
+      );
+}

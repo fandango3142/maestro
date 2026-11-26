@@ -7,26 +7,7 @@ import 'package:karaoke_manager/editor.dart';
 import 'package:karaoke_manager/library.dart';
 import 'package:karaoke_manager/theme.dart';
 
-/// Stands in for the audioplayers plugin: every call succeeds, and a set source reports "prepared"
-/// so nothing waits on its 30s timeout.
-void _fakeAudio(WidgetTester tester) {
-  final m = tester.binding.defaultBinaryMessenger;
-  final sinks = <String, MockStreamHandlerEventSink>{};
-  void stream(String name) => m.setMockStreamHandler(
-      EventChannel(name), MockStreamHandler.inline(onListen: (_, sink) {
-        sinks[name] = sink;
-      }));
-  stream('xyz.luan/audioplayers.global/events');
-  m.setMockMethodCallHandler(const MethodChannel('xyz.luan/audioplayers.global'), (_) async => null);
-  m.setMockMethodCallHandler(const MethodChannel('xyz.luan/audioplayers'), (call) async {
-    final id = (call.arguments as Map)['playerId'] as String;
-    if (call.method == 'create') stream('xyz.luan/audioplayers/events/$id');
-    if (call.method == 'setSourceUrl') {
-      sinks['xyz.luan/audioplayers/events/$id']?.success({'event': 'audio.onPrepared', 'value': true});
-    }
-    return null;
-  });
-}
+import 'helpers.dart';
 
 Future<void> _key(WidgetTester t, LogicalKeyboardKey k, {bool ctrl = false, bool shift = false}) async {
   if (ctrl) await t.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -37,21 +18,17 @@ Future<void> _key(WidgetTester t, LogicalKeyboardKey k, {bool ctrl = false, bool
   await t.pump();
 }
 
-/// Opens the editor on a temp song with [lrc]; returns the lyrics file.
-Future<File> _open(WidgetTester tester, String lrc) async {
-  _fakeAudio(tester);
-  // Real font, so widths match the app (the default test font is much wider).
-  final bytes = File('assets/fonts/NotoSans-Regular.ttf').readAsBytesSync();
-  await (FontLoader('NotoSans')..addFont(Future.value(ByteData.sublistView(bytes)))).load();
-  tester.view.physicalSize = const Size(1280, 720);
-  tester.view.devicePixelRatio = 1;
-  addTearDown(tester.view.reset);
+/// Opens the editor on a temp song with [lrc] in [name]; returns that file.
+Future<File> _open(WidgetTester tester, String lrc,
+    {String json = '{"id":"x","title":"X"}', String name = 'lyrics.roman.lrc'}) async {
+  fakeAudio(tester);
+  await appWindow(tester);
 
   final root = Directory.systemTemp.createTempSync('editor_test');
   addTearDown(() => root.deleteSync(recursive: true));
   final dir = Directory('${root.path}/library/x')..createSync(recursive: true);
-  File('${dir.path}/song.json').writeAsStringSync('{"id":"x","title":"X"}');
-  final file = File('${dir.path}/lyrics.roman.lrc')..writeAsStringSync(lrc);
+  File('${dir.path}/song.json').writeAsStringSync(json);
+  final file = File('${dir.path}/$name')..writeAsStringSync(lrc);
 
   await tester.pumpWidget(MaterialApp(theme: K.theme(), home: EditorScreen(song: Song.load(dir))));
   await tester.pump();
@@ -161,6 +138,27 @@ void main() {
     await _key(tester, LogicalKeyboardKey.backspace);
     expect(find.text('0:00.00'), findsNothing); // b untimed again
     expect(find.text('b'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('a Whisper draft shows its badge, and the first save writes lyrics.deva.lrc, not the draft',
+      (tester) async {
+    const src = '[00:01.00]alpha\n[00:05.00]beta\n';
+    final draft = await _open(tester, src,
+        name: 'lyrics.draft.lrc',
+        json: '{"id":"x","title":"X","lyrics_draft":{"source":"whisper-large-v3-turbo","confidence":"low","script":"deva"}}');
+    expect(find.text('Whisper draft · low confidence · whisper-large-v3-turbo'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await _key(tester, LogicalKeyboardKey.bracketRight); // nudge alpha +0.1s
+    await _key(tester, LogicalKeyboardKey.keyS, ctrl: true);
+    for (var i = 0; i < 50 && find.text('Saved lyrics.deva.lrc').evaluate().isEmpty; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20))); // real file IO
+      await tester.pump();
+    }
+    expect(File('${draft.parent.path}/lyrics.deva.lrc').readAsStringSync(), '[00:01.10]alpha\n[00:05.00]beta\n');
+    expect(draft.readAsStringSync(), src); // Studio's file untouched
+    expect(find.textContaining('Whisper draft'), findsNothing); // it's real lyrics now
     await tester.pumpWidget(const SizedBox());
   });
 }

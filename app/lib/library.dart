@@ -23,8 +23,10 @@ class Song {
   final Map<String, dynamic> json;
   final List<LyricLine> lyrics;
   final File lyricsFile; // where lyrics were read from, or where new ones get written
+  /// [lyrics] came from Studio's `lyrics.draft.lrc` (no real file yet); [lyricsFile] is then the save target.
+  final bool isDraft;
 
-  Song(this.dir, this.json, this.lyrics, this.lyricsFile);
+  Song(this.dir, this.json, this.lyrics, this.lyricsFile, {this.isDraft = false});
 
   String get id => json['id'] as String? ?? dir.uri.pathSegments.lastWhere((s) => s.isNotEmpty);
   String get title => json['title'] as String? ?? id;
@@ -33,7 +35,23 @@ class Song {
   String get originalKey => json['original_key'] as String? ?? '';
   int get keyShift => (json['key_shift'] as num?)?.toInt() ?? 0;
   double get tempo => (json['tempo'] as num?)?.toDouble() ?? 1.0;
-  double? get bpm => (json['bpm'] as num?)?.toDouble();
+  /// The BPM to show everywhere: Ryan's correction if set, else Studio's detection.
+  double? get bpm => (json['bpm_override'] as num?)?.toDouble() ?? detectedBpm;
+  double? get detectedBpm => (json['bpm'] as num?)?.toDouble();
+  String get sourceFile => json['source_file'] as String? ?? '';
+
+  /// Studio's `lyrics_draft` info (source, confidence, script…), or empty.
+  Map<String, dynamic> get draftInfo =>
+      json['lyrics_draft'] is Map ? Map<String, dynamic>.from(json['lyrics_draft'] as Map) : const {};
+
+  /// Still has Studio's first-guess name: no artist, and the title is the source file's stem or the id.
+  bool get needsName {
+    if (json.isEmpty || artist.trim().isNotEmpty) return false;
+    final t = title.trim();
+    final src = sourceFile;
+    final stem = src.contains('.') ? src.substring(0, src.lastIndexOf('.')) : src;
+    return t.isEmpty || t == id || (stem.isNotEmpty && t == stem);
+  }
   String get key => keyShift == 0 ? originalKey : '$originalKey → ${shiftKey(originalKey, keyShift)}';
 
   /// Length of the original backing track, read once per load from the FLAC header.
@@ -59,6 +77,7 @@ class Song {
   SongStatus get status {
     if (json.isEmpty) return SongStatus.processing;
     if (lyrics.isEmpty) return SongStatus.needsLyrics;
+    if (isDraft) return SongStatus.needsSync; // timed, but nobody has checked it yet (SPEC §4)
     if (lyrics.any((l) => l.time == null)) return SongStatus.needsSync;
     return SongStatus.ready;
   }
@@ -69,10 +88,62 @@ class Song {
         ? jsonDecode(meta.readAsStringSync()) as Map<String, dynamic>
         : <String, dynamic>{};
     final script = json['lyrics_script'] as String? ?? 'roman';
-    final wanted = File('${dir.path}/lyrics.$script.lrc');
-    final lrc = [wanted, File('${dir.path}/lyrics.roman.lrc')].where((f) => f.existsSync()).firstOrNull;
-    return Song(dir, json, lrc == null ? const [] : parseLrc(lrc.readAsStringSync()), lrc ?? wanted);
+    File f(String name) => File('${dir.path}/lyrics.$name.lrc');
+    final wanted = f(script);
+    // Any real file wins over Studio's draft (deva last, so a draft saved as deva is still found).
+    final lrc = [wanted, f('roman'), f('deva')].where((x) => x.existsSync()).firstOrNull;
+    if (lrc != null) return Song(dir, json, parseLrc(lrc.readAsStringSync()), lrc);
+    final draft = f('draft');
+    if (draft.existsSync()) {
+      final info = json['lyrics_draft'];
+      final target = f(info is Map && info['script'] == 'deva' ? 'deva' : 'roman'); // never the draft itself
+      return Song(dir, json, parseLrc(draft.readAsStringSync()), target, isDraft: true);
+    }
+    return Song(dir, json, const [], wanted);
   }
+}
+
+/// `song.json` keys the app may write (docs/stage-manager-plan.md, field ownership). Everything else
+/// (schema_version, id, source_file, original_key, bpm, *_model, cut_suggestions, lyrics_draft…) is Studio's.
+const appOwnedKeys = {
+  'title', 'artist', 'language', 'tags', 'key_shift', 'tempo', 'backing_vocals', 'guide_vocal', //
+  'lyrics_script', 'cuts', 'notes', 'bpm_override', 'dismissed_suggestions',
+};
+
+/// The one writer of `song.json`. Re-reads the file (Studio may have patched it since load), applies
+/// [changes] (a null value removes the key), and writes `.tmp` then renames over the original, so
+/// unknown fields survive and a crash never leaves half a file. Throws [ArgumentError] for any key the
+/// app doesn't own, and [StateError] if there's no song.json (creating one would make Studio skip the folder).
+// ponytail: a Studio patch landing between our read and rename is lost; the window is milliseconds.
+Future<void> saveSongFields(Song s, Map<String, Object?> changes) async {
+  final bad = changes.keys.where((k) => !appOwnedKeys.contains(k)).toList();
+  if (bad.isNotEmpty) throw ArgumentError('song.json keys not owned by the app: ${bad.join(', ')}');
+  final file = File('${s.dir.path}/song.json');
+  if (!file.existsSync()) throw StateError('No song.json in ${s.dir.path}');
+  final map = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>; // sync: a few hundred bytes
+  for (final MapEntry(:key, :value) in changes.entries) {
+    if (value == null) {
+      map.remove(key);
+    } else {
+      map[key] = value;
+    }
+  }
+  final tmp = File('${file.path}.tmp');
+  tmp.writeAsStringSync(const JsonEncoder.withIndent('  ').convert(map), flush: true);
+  tmp.renameSync(file.path); // replaces the existing file on Windows too (MoveFileEx REPLACE_EXISTING)
+  s.json
+    ..clear()
+    ..addAll(map); // the Library row shows the new values without a rescan
+}
+
+/// The next song after [after] (wrapping round to the top) that still needs a name, or null.
+Song? nextUnnamed(List<Song> songs, Song after) {
+  final i = songs.indexOf(after);
+  for (var k = 1; k <= songs.length; k++) {
+    final s = songs[(i + k) % songs.length];
+    if (s != after && s.needsName) return s;
+  }
+  return null;
 }
 
 /// Maps a playback position to the original-audio position lyrics are stored against.

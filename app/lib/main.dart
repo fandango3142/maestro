@@ -1,7 +1,5 @@
-import 'dart:async';
 import 'dart:io';
 
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -10,6 +8,7 @@ import 'package:window_manager/window_manager.dart';
 import 'editor.dart';
 import 'library.dart';
 import 'setlists_screen.dart';
+import 'song_details.dart';
 import 'stage.dart';
 import 'theme.dart';
 
@@ -39,12 +38,11 @@ class LibraryScreen extends StatefulWidget {
 class _LibraryScreenState extends State<LibraryScreen> {
   final _search = TextEditingController();
   final _searchFocus = FocusNode();
-  final _preview = AudioPlayer();
-  Timer? _previewStop;
-  String? _previewing;
+  final _preview = Preview();
   List<Song> _songs = [];
   String _language = 'All';
-  SongStatus? _status;
+  Object? _status; // null = all, a SongStatus, or _needsName
+  static const _needsName = 'needs-name';
   bool _setlists = false; // sidebar page: Library or Setlists
 
   @override
@@ -52,11 +50,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
     super.initState();
     _reload();
     _search.addListener(() => setState(() {}));
+    _preview.playing.addListener(() => setState(() {}));
   }
 
   @override
   void dispose() {
-    _previewStop?.cancel();
     _preview.dispose();
     _search.dispose();
     _searchFocus.dispose();
@@ -70,28 +68,34 @@ class _LibraryScreenState extends State<LibraryScreen> {
     return _songs
         .where((s) => q.isEmpty || '${s.title} ${s.artist}'.toLowerCase().contains(q))
         .where((s) => _language == 'All' || s.language.toLowerCase() == _language.toLowerCase())
-        .where((s) => _status == null || s.status == _status)
+        .where((s) => _status == null || (_status == _needsName ? s.needsName : s.status == _status))
         .toList();
   }
 
-  Future<void> _togglePreview(Song s) async {
-    _previewStop?.cancel();
+  /// Song details; "Save & next unnamed" walks on through every song that still needs a name.
+  Future<void> _details(Song s) async {
     await _preview.stop();
-    if (_previewing == s.id) return setState(() => _previewing = null);
-    setState(() => _previewing = s.id);
-    await _preview.play(DeviceFileSource(s.audio.path), position: const Duration(seconds: 30));
-    _previewStop = Timer(const Duration(seconds: 15), () {
-      _preview.stop();
-      if (mounted) setState(() => _previewing = null);
-    });
+    Song? cur = s;
+    while (cur != null) {
+      if (!mounted) return;
+      final how = await showSongDetails(context, cur, _preview);
+      await _preview.stop();
+      if (!mounted) return;
+      setState(() {}); // saveSongFields updated the song in place: no rescan, no flicker
+      if (how != DetailsResult.savedNext) return;
+      final skipped = cur.needsName; // saved without a name (Ryan didn't know it yet)
+      cur = nextUnnamed(_songs, cur);
+      if (cur == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(skipped ? 'No other songs need a name' : 'Every song has a name now')));
+      }
+    }
   }
 
   Future<void> _stage(Song? from) async {
     final queue = _shown.where((s) => s.playable).toList();
     if (queue.isEmpty) return;
-    _previewStop?.cancel();
     await _preview.stop();
-    setState(() => _previewing = null);
     if (!mounted) return;
     await Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => StageScreen.queue(queue, start: from == null ? 0 : queue.indexOf(from).clamp(0, queue.length)),
@@ -100,9 +104,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Future<void> _edit(Song s) async {
-    _previewStop?.cancel();
     await _preview.stop();
-    setState(() => _previewing = null);
     if (!mounted) return;
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => EditorScreen(song: s)));
     _reload();
@@ -127,7 +129,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 const SizedBox(height: 16),
                 Expanded(child: _songs.isEmpty ? _empty() : _table(shown)),
                 const SizedBox(height: 12),
-                Text('/ search  •  ↑ ↓ / Tab move  •  Enter open in stage  •  Showing ${shown.length} of ${_songs.length}',
+                Text('/ search  •  ↑ ↓ / Tab move  •  Enter open in stage  •  E song details  •  Showing ${shown.length} of ${_songs.length}',
                     style: const TextStyle(color: K.muted, fontSize: 12)),
               ]),
             ),
@@ -151,12 +153,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
           _nav(Icons.library_music_outlined, 'Library', !_setlists, () => setState(() => _setlists = false)),
           const SizedBox(height: 4),
           _nav(Icons.queue_music, 'Setlists', _setlists, () {
-            _previewStop?.cancel();
             _preview.stop(); // so a preview can't play over a stage launched from Setlists
-            setState(() {
-              _previewing = null;
-              _setlists = true;
-            });
+            setState(() => _setlists = true);
           }),
           const Spacer(),
           // Stage is an action, not a page: one solid button so it never competes with the nav.
@@ -206,9 +204,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
       _dropdown<String>(_language, {for (final l in languages) l: 'Language: ${_cap(l)}'},
           (v) => setState(() => _language = v ?? 'All')),
       const SizedBox(width: 12),
-      _dropdown<SongStatus?>(_status, {
+      _dropdown<Object?>(_status, {
         null: 'Status: All',
         for (final s in SongStatus.values) s: K.statusLabel(s),
+        _needsName: 'Needs name (${_songs.where((s) => s.needsName).length})',
       }, (v) => setState(() => _status = v)),
       const SizedBox(width: 12),
       IconButton(
@@ -294,45 +293,59 @@ class _LibraryScreenState extends State<LibraryScreen> {
             flex: _cols[i],
             child: Padding(
               padding: const EdgeInsets.only(right: 12), // gap so a long title can't touch the next column
-              child: c is Widget
+              child: c is Widget && i == 0
+                  ? c // the title cell lays itself out (ellipsis), it must not be scaled
+                  : c is Widget
                   // scaleDown: a chip shrinks rather than overflowing a narrow window
                   ? Align(alignment: Alignment.centerLeft, child: FittedBox(fit: BoxFit.scaleDown, child: c))
                   : Text('$c', style: i == 0 && !header ? style.copyWith(fontWeight: FontWeight.w600) : style,
                       overflow: TextOverflow.ellipsis),
             ),
           ),
-        SizedBox(width: 200, child: Row(mainAxisAlignment: MainAxisAlignment.end, children: actions)),
+        SizedBox(width: 248, child: Row(mainAxisAlignment: MainAxisAlignment.end, children: actions)),
       ]),
     );
   }
 
   Widget _songRow(Song s) {
     final playable = s.playable;
-    return InkWell(
-      onTap: playable ? () => _stage(s) : null,
-      hoverColor: K.surface2,
-      focusColor: K.surface2,
-      child: _row([
-        s.title,
-        s.artist.isEmpty ? '—' : s.artist,
-        s.language.isEmpty ? '—' : _cap(s.language),
-        s.key.isEmpty ? '—' : s.key,
-        s.bpm?.round() ?? '—',
-        mss(s.playedDuration),
-        StatusChip(s.status),
-      ], actions: [
-        if (playable)
-          IconButton(tooltip: 'Edit lyrics timing', onPressed: () => _edit(s), icon: const Icon(Icons.edit_note)),
-        if (playable) ...[
-          TextButton.icon(
-            onPressed: () => _togglePreview(s),
-            icon: Icon(_previewing == s.id ? Icons.stop : Icons.play_arrow, size: 18),
-            label: const Text('15s'),
-          ),
-          IconButton(
-              tooltip: 'Open in stage', onPressed: () => _stage(s), icon: const Icon(Icons.mic_external_on)),
-        ],
-      ]),
+    final hasJson = s.json.isNotEmpty; // no song.json yet = Studio still processing: nothing to edit
+    return CallbackShortcuts(
+      bindings: {if (hasJson) const SingleActivator(LogicalKeyboardKey.keyE): () => _details(s)},
+      child: InkWell(
+        onTap: playable ? () => _stage(s) : null,
+        hoverColor: K.surface2,
+        focusColor: K.surface2,
+        child: _row([
+          s.isDraft
+              ? Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(s.title, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  DraftBadge(s),
+                ])
+              : s.title,
+          s.artist.isEmpty ? '—' : s.artist,
+          s.language.isEmpty ? '—' : _cap(s.language),
+          s.key.isEmpty ? '—' : s.key,
+          s.bpm?.round() ?? '—',
+          mss(s.playedDuration),
+          StatusChip(s.status),
+        ], actions: [
+          if (hasJson)
+            IconButton(tooltip: 'Song details  (E)', onPressed: () => _details(s), icon: const Icon(Icons.edit)),
+          if (playable)
+            IconButton(tooltip: 'Edit lyrics timing', onPressed: () => _edit(s), icon: const Icon(Icons.edit_note)),
+          if (playable) ...[
+            TextButton.icon(
+              onPressed: () => _preview.toggle(s),
+              icon: Icon(_preview.playing.value == s.id ? Icons.stop : Icons.play_arrow, size: 18),
+              label: const Text('15s'),
+            ),
+            IconButton(
+                tooltip: 'Open in stage', onPressed: () => _stage(s), icon: const Icon(Icons.mic_external_on)),
+          ],
+        ]),
+      ),
     );
   }
 
