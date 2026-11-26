@@ -40,8 +40,10 @@ You can also copy files with LocalSend, which has access to `~/karaoke`.
 | Disk / swap | `df -h /; swapon --show` |
 | What's hogging memory | `ps aux --sort=-%mem \| head` |
 | Kill a script by name | `pkill -f "[p]ython studio.py"` (the brackets stop it matching your own shell) |
-| Shut down | `systemctl poweroff` needs a password over SSH; tap the power button instead |
+| Shut down | `sudo -n systemctl poweroff` (passwordless via `/etc/sudoers.d/maestro-poweroff`) |
 | Taskbar vanished | `xfce4-panel &` (on the box's own screen) |
+
+**Measured 2026-11-26** (clean fan, laptop upside down, 4-min song). CPU (i5-10300H) held at 93–95 °C throughout, and fell to about 72 °C within 30 s of the GPU going idle. GPU peaked at 87 °C. Separation took 448 s, the same as before (452 s), so nothing throttled. If it ever does, turning turbo off cuts CPU heat with little cost, because the work is GPU-bound: `echo 1 | sudo tee /sys/devices/system/cpu/intel_pstate/no_turbo` (`0` turns it back on; it resets at reboot).
 
 **Safe temperatures.** GPU under load: up to about 80 °C is fine and 87 °C is its throttle point. CPU: under about 90 °C.
 
@@ -113,4 +115,6 @@ The Windows laptop's "Maestro Sync" task (`studio/sync.ps1`) runs every 2 minute
 | Date | Command / change | Why |
 |---|---|---|
 | 2026-11-26 | `systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=1G` on all bench jobs | An AudioSR test used all 8 GB, the box swapped and froze, and it needed a power-cycle |
+| 2026-11-26 | `echo 'ryan ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff' \| sudo tee /etc/sudoers.d/maestro-poweroff` | Shut the box down over SSH without a password (allows only that one command) |
+| 2026-11-26 | Studio unloads Ollama models before each song (`keep_alive: 0` via its API) | Ollama and the separator share the 4 GB GPU; tested, freed 1.6 GB |
 | 2026-11-26 | `run.sh` falls back to running without `systemd-inhibit` when polkit says "Access denied" | Nobody is logged in at the desktop after a boot, so inhibit was refused and Studio silently skipped its boot run |
